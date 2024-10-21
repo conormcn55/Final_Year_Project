@@ -311,7 +311,7 @@ export default function ListingForum() {
                     </Button>
                 </Box>
                 
-                {/* Submit Button */}
+        
                 <Button type="submit" variant="contained" disabled={loading}>
                     {loading ? 'Submitting...' : 'Submit Listing'}
                 </Button>

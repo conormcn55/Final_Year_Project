@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Link, BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { Link, BrowserRouter as Router, Route, Routes, useNavigate } from 'react-router-dom';
 import AppBar from '@mui/material/AppBar';
 import Box from '@mui/material/Box';
 import Toolbar from '@mui/material/Toolbar';
@@ -15,18 +15,22 @@ import MenuItem from '@mui/material/MenuItem';
 import AdbIcon from '@mui/icons-material/Adb';
 import Home from '../pages/Home';
 import CreateListing from '../pages/CreateListing';
-import Profile from '../pages/Profile'; 
+import Profile from '../pages/Profile';
 import HistoricSales from '../pages/HistoricSales';
 
 const pages = [
   { label: 'Create Listing', path: '/createlisting' },
-  {label: 'Houses Sold', path: '/housessold'}
+  { label: 'Houses Sold', path: '/housessold' }
 ];
-const settings = ['Profile'];
+const settings = ['Profile', 'Sign Out'];
 
 function NavBar() {
   const [anchorElNav, setAnchorElNav] = React.useState(null);
   const [anchorElUser, setAnchorElUser] = React.useState(null);
+  const userAvatar = localStorage.getItem('avatar');
+  const userId = localStorage.getItem('userId');
+  const loggedIn = Boolean(userId);
+
 
   const handleOpenNavMenu = (event) => {
     setAnchorElNav(event.currentTarget);
@@ -43,14 +47,18 @@ function NavBar() {
     setAnchorElUser(null);
   };
 
+  const handleSignOut = () => {
+    localStorage.clear();
+    window.location.href = 'http://localhost:3001/api/user/logout';
+  };
+
   return (
     <Router>
       <AppBar position="static">
         <Container maxWidth="xl">
           <Toolbar disableGutters>
             <AdbIcon sx={{ display: { xs: 'none', md: 'flex' }, mr: 1 }} />
-            
-            {/* Wrap the logo in a Link component */}
+
             <Typography
               variant="h6"
               noWrap
@@ -108,7 +116,6 @@ function NavBar() {
               </Menu>
             </Box>
 
-            {/* Mobile logo */}
             <Typography
               variant="h5"
               noWrap
@@ -143,11 +150,22 @@ function NavBar() {
             </Box>
 
             <Box sx={{ flexGrow: 0 }}>
-              <Tooltip title="Open settings">
-                <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
-                  <Avatar alt="Remy Sharp" src="/static/images/avatar/2.jpg" />
-                </IconButton>
-              </Tooltip>
+              {loggedIn ? (
+                <Tooltip title="Open settings">
+                  <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
+                    <Avatar alt="User Avatar" src="/static/images/avatar/2.jpg" />
+                  </IconButton>
+                </Tooltip>
+              ) : (
+                <Button
+                  variant="contained"
+                  color="secondary"
+                  href="http://localhost:3001/api/user/auth/google"
+                  sx={{ my: 2 }}
+                >
+                  Sign In
+                </Button>
+              )}
               <Menu
                 sx={{ mt: '45px' }}
                 id="menu-appbar"
@@ -165,11 +183,18 @@ function NavBar() {
                 onClose={handleCloseUserMenu}
               >
                 {settings.map((setting) => (
-                  <MenuItem key={setting} onClick={handleCloseUserMenu}>
+                  <MenuItem
+                    key={setting}
+                    onClick={setting === 'Sign Out' ? handleSignOut : handleCloseUserMenu}
+                  >
                     <Typography textAlign="center">
-                      <Link to="/profile" style={{ textDecoration: 'none', color: 'inherit' }}>
-                        {setting}
-                      </Link>
+                      {setting === 'Sign Out' ? (
+                        setting
+                      ) : (
+                        <Link to="/profile" style={{ textDecoration: 'none', color: 'inherit' }}>
+                          {setting}
+                        </Link>
+                      )}
                     </Typography>
                   </MenuItem>
                 ))}
@@ -179,12 +204,11 @@ function NavBar() {
         </Container>
       </AppBar>
 
-      {/* Define your routes here */}
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/createlisting" element={<CreateListing />} />
-        <Route path="/profile" element={<Profile />} /> 
-        <Route path="/housessold" element={<HistoricSales />} /> 
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/housessold" element={<HistoricSales />} />
       </Routes>
     </Router>
   );

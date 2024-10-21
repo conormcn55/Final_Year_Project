@@ -1,7 +1,7 @@
+import SignUpForum from "../components/SignUpForum";
 const SignUp = () => {
     return ( 
-
-    <div>Sign Up Page</div>
+        <SignUpForum/>
      );
 }
  

@@ -4,11 +4,11 @@ const Schema= mongoose.Schema;
 const PropertySchema = new Schema({
     address:{
         addressLine1:{type:String,required:true},
-        addressLine2:{type:String,required:false},
+        addressLine2:{type:String,required:true},
         addressLine3:{type:String,required:false},
         addressTown:{type:String,required:true},
         addressCounty:{type:String,required:true},
-        addressEirecode:{type:String,required:false},
+        addressEirecode:{type:String,required:true},
     },
     guidePrice:{
         type: Number,

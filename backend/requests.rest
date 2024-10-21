@@ -19,3 +19,5 @@ DELETE http://localhost:3001/api/property/delete/66f595b31528d63ab668c133
 
 ###
 PUT http://localhost:3001/api/property/sold/66f589f58d665ed1c23a1ae7
+###
+GET http://localhost:3001/api/user

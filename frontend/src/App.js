@@ -1,5 +1,6 @@
 
 import NavBar  from './components/NavBar';
+
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 const style = createTheme({
   palette: {
