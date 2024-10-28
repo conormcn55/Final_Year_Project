@@ -4,7 +4,7 @@ const cloudinary=require('../utils/cloudinary')
 
 exports.getAllUsers = async (req, res) => {
     try {
-        const users = await User.find();
+        const users = await User.find(); 
         res.json(users);
     } catch (error) {
         console.error(error);
@@ -14,30 +14,7 @@ exports.getAllUsers = async (req, res) => {
 
 exports.createUser = async (req, res) => {
     try {
-        // Function to calculate age based on DOB
-        const calculateAge = (dob) => {
-            const today = new Date();
-            const birthDate = new Date(dob);
-            let age = today.getFullYear() - birthDate.getFullYear();
-            const monthDifference = today.getMonth() - birthDate.getMonth();
-            if (monthDifference < 0 || (monthDifference === 0 && today.getDate() < birthDate.getDate())) {
-                age--;
-            }
-            return age;
-        };
-
-        // Check if user is 18 or older
-        const age = calculateAge(req.body.dob);
-        if (age < 18) {
-            return res.status(400).json({
-                success: false,
-                message: 'User must be at least 18 years old to sign up',
-            });
-        }
-
         let avatarResult;
-        
-        // Check if an avatar is provided, if not, use default avatar
         if (req.body.avatar) {
             avatarResult = await cloudinary.uploader.upload(req.body.avatar, {
                 folder: "avatars", 
@@ -94,6 +71,144 @@ exports.createUser = async (req, res) => {
         });
     }
 };
+exports.updateUser = async (req, res) => {
+    try {
+        const userId = req.params.id;
+        
+        const user = await User.findById(userId);
+        
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found',
+            });
+        }
+
+        let avatarResult = user.avatar; 
+        if (req.body.avatar && req.body.avatar !== user.avatar?.url) {
+            if (user.avatar?.public_id) {
+                await cloudinary.uploader.destroy(user.avatar.public_id);
+            }
+            
+            try {
+                avatarResult = await cloudinary.uploader.upload(req.body.avatar, {
+                    folder: "avatars",
+                    resource_type: "auto"
+                });
+                
+                avatarResult = {
+                    public_id: avatarResult.public_id,
+                    url: avatarResult.secure_url
+                };
+            } catch (uploadError) {
+                console.error('Avatar upload error:', uploadError);
+                avatarResult = user.avatar;
+            }
+        }
+
+        
+        let filesBuffer = [...(user.files || [])]; 
+        if (req.body.files && Array.isArray(req.body.files)) {
+            const newFiles = req.body.files.filter(file => 
+                file.url && typeof file.url === 'string' && !file.url.startsWith('http')
+            );
+        
+            for (const file of newFiles) {
+                try {
+                    const result = await cloudinary.uploader.upload(file.url, {
+                        folder: "files",
+                        resource_type: "auto",
+                        width: 1920,
+                        crop: "scale"
+                    });
+                    
+                    filesBuffer.push({
+                        public_id: result.public_id,
+                        url: result.secure_url,
+                        filename: file.filename || 'Untitled File'
+                    });
+                } catch (uploadError) {
+                    console.error('File upload error:', uploadError);
+                    continue;
+                }
+            }
+        }
+        // Update user fields
+        const updatedFields = {
+            name: req.body.name || user.name,
+            email: req.body.email || user.email,
+            number: req.body.number || user.number,
+            dob: req.body.dob || user.dob,
+            avatar: avatarResult,
+            files: filesBuffer,
+            description: req.body.description || user.description,
+            userType: req.body.userType || user.userType,
+            regNumber: req.body.regNumber || user.regNumber
+        };
+        const updatedUser = await User.findByIdAndUpdate(
+            userId,
+            { $set: updatedFields },
+            { new: true, runValidators: true }
+        );
+
+        res.status(200).json({
+            success: true,
+            message: 'User updated successfully',
+            user: updatedUser, 
+        });
+
+    } catch (error) {
+        console.error('Update user error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to update User',
+            error: error.message,
+        });
+    }
+};
+exports.deleteFiles = async (req, res) => {
+    try {
+        const { userId, fileId } = req.params;
+        console.log('User ID:', userId);  // Debugging statement
+        console.log('File ID:', fileId);  // Debugging statement
+        
+        const result = await User.findByIdAndUpdate(userId, {
+          $pull: { files: { _id: fileId } }
+        });
+        
+        console.log('Deletion Result:', result);  
+        console.log('Type of fileId:', typeof fileId);
+        res.status(200).send({ message: 'File deleted successfully' });
+      } catch (error) {
+        console.error('Error deleting file:', error);
+        res.status(500).send({ error: 'Failed to delete file' });
+      }
+};
 
 
+exports.deleteUser = async (req, res) => {
+    try {
+        const userId = req.params.id;
 
+        const user = await User.findByIdAndDelete(userId);
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found',
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'User deleted successfully',
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to delete User',
+            error: error.message,
+        });
+    }
+};

@@ -1,40 +1,76 @@
-import * as React from 'react';
-import { Link, BrowserRouter as Router, Route, Routes, useNavigate } from 'react-router-dom';
-import AppBar from '@mui/material/AppBar';
-import Box from '@mui/material/Box';
-import Toolbar from '@mui/material/Toolbar';
-import IconButton from '@mui/material/IconButton';
-import Typography from '@mui/material/Typography';
-import Menu from '@mui/material/Menu';
-import MenuIcon from '@mui/icons-material/Menu';
-import Container from '@mui/material/Container';
-import Avatar from '@mui/material/Avatar';
-import Button from '@mui/material/Button';
-import Tooltip from '@mui/material/Tooltip';
-import MenuItem from '@mui/material/MenuItem';
-import AdbIcon from '@mui/icons-material/Adb';
-import Home from '../pages/Home';
-import CreateListing from '../pages/CreateListing';
-import Profile from '../pages/Profile';
-import HistoricSales from '../pages/HistoricSales';
+import * as React from "react";
+import {
+  Link,
+  BrowserRouter as Router,
+  Route,
+  Routes,
+  useNavigate,
+} from "react-router-dom";
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
+import AppBar from "@mui/material/AppBar";
+import Box from "@mui/material/Box";
+import Toolbar from "@mui/material/Toolbar";
+import IconButton from "@mui/material/IconButton";
+import Typography from "@mui/material/Typography";
+import Menu from "@mui/material/Menu";
+import MenuIcon from "@mui/icons-material/Menu";
+import Container from "@mui/material/Container";
+import Avatar from "@mui/material/Avatar";
+import Button from "@mui/material/Button";
+import Tooltip from "@mui/material/Tooltip";
+import MenuItem from "@mui/material/MenuItem";
+import AdbIcon from "@mui/icons-material/Adb";
+import Home from "../pages/Home";
+import CreateListing from "../pages/CreateListing";
+import Profile from "../pages/Profile";
+import HistoricSales from "../pages/HistoricSales";
 
 const pages = [
-  { label: 'Create Listing', path: '/createlisting' },
-  { label: 'Houses Sold', path: '/housessold' }
+  { label: "Create Listing", path: "/createlisting" },
+  { label: "Houses Sold", path: "/housessold" },
 ];
-const settings = ['Profile', 'Sign Out'];
+const settings = ["Profile", "Sign Out"];
 
-function NavBar() {
+export default function NavBar() {
   const [anchorElNav, setAnchorElNav] = React.useState(null);
   const [anchorElUser, setAnchorElUser] = React.useState(null);
-  const userAvatar = localStorage.getItem('avatar');
-  const userId = localStorage.getItem('userId');
-  const loggedIn = Boolean(userId);
+  const [user, setUser] = React.useState(null);
+  const [avatarUrl, setAvatarUrl] = React.useState(null); // State to store avatar URL
 
+ 
 
+  React.useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/api/user/me', {
+          credentials: 'include' // Important for sending cookies
+        });
+        if (response.ok) {
+          const userData = await response.json();
+          setUser(userData);
+        }
+      } catch (error) {
+        console.error('Auth check failed:', error);
+      }
+    };
+
+    checkAuth();
+  }, []);
+
+  React.useEffect(() => {
+    const storedAvatar = localStorage.getItem('avatar');
+    if (storedAvatar) {
+      const avatarObj = JSON.parse(storedAvatar); // Assuming avatar is stored as an object
+      setAvatarUrl(avatarObj.url); // Set the avatar URL from local storage
+    }
+  }, []);
   const handleOpenNavMenu = (event) => {
     setAnchorElNav(event.currentTarget);
   };
+  
   const handleOpenUserMenu = (event) => {
     setAnchorElUser(event.currentTarget);
   };
@@ -47,9 +83,22 @@ function NavBar() {
     setAnchorElUser(null);
   };
 
-  const handleSignOut = () => {
-    localStorage.clear();
-    window.location.href = 'http://localhost:3001/api/user/logout';
+  const handleSignOut = async () => {
+    try {
+      await fetch('http://localhost:3001/api/user/logout', {
+        method: 'GET',
+        credentials: 'include'
+      });
+      setUser(null);
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
+
+  const handleProfileClick = () => {
+    handleCloseUserMenu();
+    window.location.href = '/profile';
   };
 
   return (
@@ -57,8 +106,8 @@ function NavBar() {
       <AppBar position="static">
         <Container maxWidth="xl">
           <Toolbar disableGutters>
-            <AdbIcon sx={{ display: { xs: 'none', md: 'flex' }, mr: 1 }} />
-
+            {/* Logo and brand section remains the same */}
+            <AdbIcon sx={{ display: { xs: "none", md: "flex" }, mr: 1 }} />
             <Typography
               variant="h6"
               noWrap
@@ -66,18 +115,18 @@ function NavBar() {
               to="/"
               sx={{
                 mr: 2,
-                display: { xs: 'none', md: 'flex' },
-                fontFamily: 'monospace',
+                display: { xs: "none", md: "flex" },
+                fontFamily: "monospace",
                 fontWeight: 700,
-                letterSpacing: '.3rem',
-                color: 'inherit',
-                textDecoration: 'none',
+                letterSpacing: ".3rem",
+                color: "inherit",
+                textDecoration: "none",
               }}
             >
               Project
             </Typography>
 
-            <Box sx={{ flexGrow: 1, display: { xs: 'flex', md: 'none' } }}>
+            <Box sx={{ flexGrow: 1, display: { xs: "flex", md: "none" } }}>
               <IconButton
                 size="large"
                 aria-label="account of current user"
@@ -92,22 +141,25 @@ function NavBar() {
                 id="menu-appbar"
                 anchorEl={anchorElNav}
                 anchorOrigin={{
-                  vertical: 'bottom',
-                  horizontal: 'left',
+                  vertical: "bottom",
+                  horizontal: "left",
                 }}
                 keepMounted
                 transformOrigin={{
-                  vertical: 'top',
-                  horizontal: 'left',
+                  vertical: "top",
+                  horizontal: "left",
                 }}
                 open={Boolean(anchorElNav)}
                 onClose={handleCloseNavMenu}
-                sx={{ display: { xs: 'block', md: 'none' } }}
+                sx={{ display: { xs: "block", md: "none" } }}
               >
                 {pages.map((page) => (
                   <MenuItem key={page.label} onClick={handleCloseNavMenu}>
                     <Typography textAlign="center">
-                      <Link to={page.path} style={{ textDecoration: 'none', color: 'inherit' }}>
+                      <Link
+                        to={page.path}
+                        style={{ textDecoration: "none", color: "inherit" }}
+                      >
                         {page.label}
                       </Link>
                     </Typography>
@@ -123,26 +175,30 @@ function NavBar() {
               to="/"
               sx={{
                 mr: 2,
-                display: { xs: 'flex', md: 'none' },
+                display: { xs: "flex", md: "none" },
                 flexGrow: 1,
-                fontFamily: 'monospace',
+                fontFamily: "monospace",
                 fontWeight: 700,
-                letterSpacing: '.3rem',
-                color: 'inherit',
-                textDecoration: 'none',
+                letterSpacing: ".3rem",
+                color: "inherit",
+                textDecoration: "none",
               }}
             >
-              LOGO
+              Project
             </Typography>
 
-            <Box sx={{ flexGrow: 1, display: { xs: 'none', md: 'flex' } }}>
+            
+            <Box sx={{ flexGrow: 1, display: { xs: "none", md: "flex" } }}>
               {pages.map((page) => (
                 <Button
                   key={page.label}
                   onClick={handleCloseNavMenu}
-                  sx={{ my: 2, color: 'white', display: 'block' }}
+                  sx={{ my: 2, color: "white", display: "block" }}
                 >
-                  <Link to={page.path} style={{ textDecoration: 'none', color: 'inherit' }}>
+                  <Link
+                    to={page.path}
+                    style={{ textDecoration: "none", color: "inherit" }}
+                  >
                     {page.label}
                   </Link>
                 </Button>
@@ -150,10 +206,13 @@ function NavBar() {
             </Box>
 
             <Box sx={{ flexGrow: 0 }}>
-              {loggedIn ? (
+              {user ? (
                 <Tooltip title="Open settings">
                   <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
-                    <Avatar alt="User Avatar" src="/static/images/avatar/2.jpg" />
+                    <Avatar
+                      alt= {avatarUrl  || "User Avatar"}
+                      src={avatarUrl || "/static/images/avatar/2.jpg"}
+                    />
                   </IconButton>
                 </Tooltip>
               ) : (
@@ -167,37 +226,27 @@ function NavBar() {
                 </Button>
               )}
               <Menu
-                sx={{ mt: '45px' }}
+                sx={{ mt: "45px" }}
                 id="menu-appbar"
                 anchorEl={anchorElUser}
                 anchorOrigin={{
-                  vertical: 'top',
-                  horizontal: 'right',
+                  vertical: "top",
+                  horizontal: "right",
                 }}
                 keepMounted
                 transformOrigin={{
-                  vertical: 'top',
-                  horizontal: 'right',
+                  vertical: "top",
+                  horizontal: "right",
                 }}
                 open={Boolean(anchorElUser)}
                 onClose={handleCloseUserMenu}
               >
-                {settings.map((setting) => (
-                  <MenuItem
-                    key={setting}
-                    onClick={setting === 'Sign Out' ? handleSignOut : handleCloseUserMenu}
-                  >
-                    <Typography textAlign="center">
-                      {setting === 'Sign Out' ? (
-                        setting
-                      ) : (
-                        <Link to="/profile" style={{ textDecoration: 'none', color: 'inherit' }}>
-                          {setting}
-                        </Link>
-                      )}
-                    </Typography>
-                  </MenuItem>
-                ))}
+                <MenuItem onClick={handleProfileClick}>
+                  <Typography textAlign="center">Profile</Typography>
+                </MenuItem>
+                <MenuItem onClick={handleSignOut}>
+                  <Typography textAlign="center">Sign Out</Typography>
+                </MenuItem>
               </Menu>
             </Box>
           </Toolbar>
@@ -214,4 +263,3 @@ function NavBar() {
   );
 }
 
-export default NavBar;

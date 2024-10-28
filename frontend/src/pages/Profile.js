@@ -1,61 +1,62 @@
 import { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import SignUpForum from "../components/SignUpForum";
-import axios from 'axios'; 
+import { useNavigate } from 'react-router-dom';
+import UserInfo from '../components/UserInfo';
 
 const Profile = () => {
-    const location = useLocation();
-    const navigate = useNavigate(); 
+    const navigate = useNavigate();
     const [userData, setUserData] = useState(null);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const params = new URLSearchParams(location.search);
-        const userId = params.get('userId'); 
+        const userAuth = async () => {
+            try {
+                const response = await fetch('http://localhost:3001/api/user/me', {
+                    credentials: 'include', 
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
 
-        if (userId) {
-            localStorage.setItem('userId', userId);
+                console.log('Response:', response);
 
-            fetchUserDetails(userId);
-        }
+                if (!response.ok) {
+                    navigate('/');
+                    return;
+                }
 
+                const user = await response.json();
 
-        const loaded = localStorage.getItem('loaded');
-        if (!loaded) {
-            localStorage.setItem('loaded', 'true');
-            window.location.reload();
-        }
+                console.log('User Data:', user);
+                setUserData(user);
+                const { email, avatar, _id } = user; 
+                localStorage.setItem('email', email);
+                localStorage.setItem('avatar', JSON.stringify(avatar));
+                localStorage.setItem('userId', _id); 
 
-    }, [location, navigate]);
+            } catch (error) {
+                console.error('Failed to fetch user data:', error);
+                navigate('/');
+            } finally {
+                setLoading(false);
+            }
+        };
 
-    const fetchUserDetails = async (userId) => {
-        try {
-            const response = await axios.get(`http://localhost:3001/api/user/${userId}`);
-            const user = response.data;
+        userAuth();
+    }, [navigate]);
 
-            localStorage.setItem('name', user.name);
-            localStorage.setItem('userID', user.userID);
-            localStorage.setItem('avatar', user.avatar);
-            localStorage.setItem('email', user.email);
-
-            // Update userData state
-            setUserData(user);
-            console.log('User data stored in localStorage:', user);
-        } catch (error) {
-            console.error('Error fetching user details:', error);
-        }
-    };
-
-    const usersID = localStorage.getItem('userId'); 
+    if (loading) {
+        return <div>Loading...</div>;
+    }
 
     return (
         <div>
-            { userData ? (
-                <SignUpForum userId={usersID}/>
+            {userData ? (
+                <UserInfo  />
             ) : (
-                <p> Please Log In </p>
+                <p>Please Log In</p>
             )}
         </div>
     );
-}
+};
 
 export default Profile;

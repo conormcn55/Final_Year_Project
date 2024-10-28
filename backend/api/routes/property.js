@@ -11,5 +11,5 @@ router.post('/new', propertyController.createProperty);
 router.delete('/delete/:id', propertyController.deleteProperty);
 // PUT toggle sold status
 router.put('/sold/:id', propertyController.toggleSoldStatus);
-
+router.get('/search', propertyController.searchProperties);
 module.exports = router;

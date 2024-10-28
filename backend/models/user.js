@@ -3,7 +3,7 @@ const Schema= mongoose.Schema;
 
 const UserSchema = new Schema({
     name:{type:String,required:true},
-    userID:{type:String,required:true},
+    googleId:{type:String,required:false},
     email:{type:String,required:true},
     number:{type:String,required:false},
     avatar: {
@@ -23,6 +23,10 @@ const UserSchema = new Schema({
                 required: false
             },
             url: {
+                type: String,
+                required: false
+            },
+            filename: {  
                 type: String,
                 required: false
             }
