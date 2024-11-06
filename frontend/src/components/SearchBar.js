@@ -8,8 +8,7 @@ import { LocationOn as LocationOnIcon, FilterAlt as FilterAltIcon } from '@mui/i
 import { debounce } from '@mui/material/utils';
 import propertyType from '../utils/propertyType';
 
-const GOOGLE_MAPS_API_KEY = 'AIzaSyB0rv1dRFVC0etIzJ8JJ3S1u51Hc2i_DFY';
-
+const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
 export default function SearchBar() {
   const navigate = useNavigate();
   const [value, setValue] = useState(null);
