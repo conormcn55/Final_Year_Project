@@ -1,0 +1,30 @@
+const counties = [
+    { value: 'County Roscommon', label: 'County Roscommon' },
+    { value: 'County Dublin', label: 'County Dublin' },
+    { value: 'County Cork', label: 'County Cork' },
+    { value: 'County Galway', label: 'County Galway' },
+    { value: 'County Mayo', label: 'County Mayo' },
+    { value: 'County Kerry', label: 'County Kerry' },
+    { value: 'County Donegal', label: 'County Donegal' },
+    { value: 'County Wexford', label: 'County Wexford' },
+    { value: 'County Limerick', label: 'County Limerick' },
+    { value: 'County Meath', label: 'County Meath' },
+    { value: 'County Kilkenny', label: 'County Kilkenny' },
+    { value: 'County Laois', label: 'County Laois' },
+    { value: 'County Westmeath', label: 'County Westmeath' },
+    { value: 'County Tipperary', label: 'County Tipperary' },
+    { value: 'County Clare', label: 'County Clare' },
+    { value: 'County Waterford', label: 'County Waterford' },
+    { value: 'County Louth', label: 'County Louth' },
+    { value: 'County Wicklow', label: 'County Wicklow' },
+    { value: 'County Offaly', label: 'County Offaly' },
+    { value: 'County Cavan', label: 'County Cavan' },
+    { value: 'County Longford', label: 'County Longford' },
+    { value: 'County Kildare', label: 'County Kildare' },
+    { value: 'County Monaghan', label: 'County Monaghan' },
+    { value: 'County Carlow', label: 'County Carlow' },
+    { value: 'County Leitrim', label: 'County Leitrim' },
+    { value: 'County Sligo', label: 'County Sligo' }
+];
+
+export default counties;

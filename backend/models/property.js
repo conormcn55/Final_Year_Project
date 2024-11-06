@@ -4,7 +4,7 @@ const Schema= mongoose.Schema;
 const PropertySchema = new Schema({
     address:{
         addressLine1:{type:String,required:true},
-        addressLine2:{type:String,required:true},
+        addressLine2:{type:String,required:false},
         addressLine3:{type:String,required:false},
         addressTown:{type:String,required:true},
         addressCounty:{type:String,required:true},
@@ -20,8 +20,8 @@ const PropertySchema = new Schema({
         default: false 
     },
     listedBy:{
-        type : String,
-        required:true
+        listerID:{type:String,required:true},
+        listerName:{type:String,required:true},
     },
     images: [
         {

@@ -6,10 +6,6 @@ import {
   Routes,
   useNavigate,
 } from "react-router-dom";
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
 import AppBar from "@mui/material/AppBar";
 import Box from "@mui/material/Box";
 import Toolbar from "@mui/material/Toolbar";
@@ -22,23 +18,25 @@ import Avatar from "@mui/material/Avatar";
 import Button from "@mui/material/Button";
 import Tooltip from "@mui/material/Tooltip";
 import MenuItem from "@mui/material/MenuItem";
-import AdbIcon from "@mui/icons-material/Adb";
 import Home from "../pages/Home";
 import CreateListing from "../pages/CreateListing";
 import Profile from "../pages/Profile";
 import HistoricSales from "../pages/HistoricSales";
+import SearchBar from "./SearchBar";
+import SearchResults from "./SearchResults";
+import PropertyPage from "../pages/PropertyPage"
+import HouseIcon from '@mui/icons-material/House';
 
 const pages = [
   { label: "Create Listing", path: "/createlisting" },
   { label: "Houses Sold", path: "/housessold" },
 ];
-const settings = ["Profile", "Sign Out"];
 
 export default function NavBar() {
   const [anchorElNav, setAnchorElNav] = React.useState(null);
   const [anchorElUser, setAnchorElUser] = React.useState(null);
   const [user, setUser] = React.useState(null);
-  const [avatarUrl, setAvatarUrl] = React.useState(null); // State to store avatar URL
+  const [avatarUrl, setAvatarUrl] = React.useState(null); 
 
  
 
@@ -46,7 +44,7 @@ export default function NavBar() {
     const checkAuth = async () => {
       try {
         const response = await fetch('http://localhost:3001/api/user/me', {
-          credentials: 'include' // Important for sending cookies
+          credentials: 'include' 
         });
         if (response.ok) {
           const userData = await response.json();
@@ -106,8 +104,7 @@ export default function NavBar() {
       <AppBar position="static">
         <Container maxWidth="xl">
           <Toolbar disableGutters>
-            {/* Logo and brand section remains the same */}
-            <AdbIcon sx={{ display: { xs: "none", md: "flex" }, mr: 1 }} />
+            <HouseIcon sx={{ display: { xs: "none", md: "flex" }, mr: 1 }} />
             <Typography
               variant="h6"
               noWrap
@@ -252,13 +249,14 @@ export default function NavBar() {
           </Toolbar>
         </Container>
       </AppBar>
-
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/createlisting" element={<CreateListing />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/housessold" element={<HistoricSales />} />
-      </Routes>
+    <Routes>
+      <Route path="/" element={<Home />} />
+      <Route path="/createlisting" element={<CreateListing />} />
+      <Route path="/profile" element={<Profile />} />
+      <Route path="/housessold" element={<HistoricSales />} />
+      <Route path="/search-results" element={<SearchResults />} />
+      <Route path="/property/:id" element={<PropertyPage />} /> {/* New route */}
+    </Routes>
     </Router>
   );
 }

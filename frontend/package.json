@@ -30,6 +30,7 @@
     "@tiptap/pm": "^2.8.0",
     "@tiptap/react": "^2.8.0",
     "@tiptap/starter-kit": "^2.8.0",
+    "autosuggest-highlight": "^3.3.4",
     "axios": "^1.7.7",
     "bootstrap": "^5.3.3",
     "dayjs": "^1.11.13",

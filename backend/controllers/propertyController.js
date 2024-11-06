@@ -90,8 +90,7 @@ exports.toggleSoldStatus = async (req, res) => {
 
 exports.searchProperties = async (req, res) => {
     try {
-        // Get parameters from query string
-        const location = req.query.location || '';
+        const location = (req.query.location || '').replace(/,/g, ' ').trim();
         const maxPrice = req.query.price ? Number(req.query.price) : Number.MAX_SAFE_INTEGER;
         const bedNum = req.query.bedNum ? Number(req.query.bedNum) : null;
         const bathNum = req.query.bathNum ? Number(req.query.bathNum) : null;
@@ -99,44 +98,54 @@ exports.searchProperties = async (req, res) => {
         const propertyType = req.query.propertyType || '';
         const listingType = req.query.listingType || '';
 
+        const locationParts = location.split(/\s+/);
+        const town = locationParts[0]; 
+        const county = locationParts.slice(1).join(' '); 
+
+        let locationQuery = {};
+        if (location) {
+            locationQuery = {
+                $or: [
+                   
+                    { "address.addressLine1": { $regex: location, $options: 'i' } },
+                    { "address.addressLine2": { $regex: location, $options: 'i' } },
+                    { "address.addressLine3": { $regex: location, $options: 'i' } },
+                    {
+                        $and: [
+                            { "address.addressTown": { $regex: `^${town}$`, $options: 'i' } },
+                            { "address.addressCounty": { $regex: county, $options: 'i' } }
+                        ]
+                    },
+                    { "address.addressTown": { $regex: `^${town}$`, $options: 'i' } },
+                    { "address.addressTown": { $regex: location, $options: 'i' } },
+                    { "address.addressCounty": { $regex: location, $options: 'i' } }
+                ]
+            };
+        }
+
         let query = {
             $and: [
-                {
-                    $or: [
-                        { "address.addressLine1": { $regex: location, $options: 'i' } },
-                        { "address.addressLine2": { $regex: location, $options: 'i' } },
-                        { "address.addressLine3": { $regex: location, $options: 'i' } },
-                        { "address.addressTown": { $regex: location, $options: 'i' } },
-                        { "address.addressCounty": { $regex: location, $options: 'i' } },
-                        { "address.addressEirecode": { $regex: location, $options: 'i' } }
-                    ]
-                },
+                locationQuery,
                 { guidePrice: { $lte: maxPrice } }
             ]
         };
 
-        // Add property type filter if specified
         if (propertyType) {
             query.$and.push({
-                $or: [
-                    { propertyType: { $regex: propertyType, $options: 'i' } }
-                ]
+                propertyType: { $regex: propertyType, $options: 'i' }
             });
         }
 
-        // Add listing type filter if specified
         if (listingType) {
             query.$and.push({
-                listingType: { $regex: `^${listingType}$`, $options: 'i' } // Exact match with case insensitivity
+                listingType: { $regex: `^${listingType}$`, $options: 'i' }
             });
         }
 
-        // Add bedroom filter if specified
         if (bedNum !== null) {
             query.$and.push({ bedrooms: bedNum });
         }
 
-        // Add bathroom filter if specified
         if (bathNum !== null) {
             query.$and.push({ bathrooms: bathNum });
         }
@@ -160,13 +169,65 @@ exports.searchProperties = async (req, res) => {
 
         const properties = await Property.find(query).sort(sortOptions);
 
+        console.log('Search Query:', JSON.stringify(query, null, 2));
+        console.log('Location Terms:', { town, county });
+        console.log('Results Found:', properties.length);
+
         if (!properties.length) {
-            return res.status(404).json({ message: 'No properties found matching the search criteria' });
+            return res.status(404).json({ 
+                message: 'No properties found matching the search criteria',
+                searchTerms: {
+                    location,
+                    town,
+                    county
+                },
+                query: query
+            });
         }
 
         res.json(properties);
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Error retrieving properties' });
+    }
+};
+exports.getProperty = async (req, res) => {
+    try {
+        const property = await Property.findById(req.params.id);
+        
+        if (!property) {
+            return res.status(404).json({ message: 'Property not found' });
+        }
+        
+        res.json(property);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error retrieving property' });
+    }
+};
+exports.deleteAllProperties = async (req, res) => {
+    try {
+        
+        const properties = await Property.find({}, 'images');
+        for (const property of properties) {
+            if (property.images && property.images.length > 0) {
+                for (const image of property.images) {
+                    if (image.public_id) {
+                        await cloudinary.uploader.destroy(image.public_id);
+                    }
+                }
+            }
+        }
+
+        
+        const result = await Property.deleteMany({});
+
+        res.json({
+            message: 'All properties deleted',
+            result: result
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error deleting properties' });
     }
 };

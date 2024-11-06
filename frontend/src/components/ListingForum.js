@@ -8,6 +8,7 @@ import { styled } from '@mui/system';
 import axios from 'axios';
 import boxStyle from '../utils/boxStyle';
 import propertyType from '../utils/propertyType';
+import counties from '../utils/counties'; 
 
 const VisuallyHiddenInput = styled('input')({
   display: 'none',
@@ -27,7 +28,10 @@ export default function ListingForum() {
         },
         guidePrice: '',
         currentBid: '100000',
-        listedBy: 'CONOR',
+        listedBy: {
+            listerID: '',
+            listerName: ''
+        },
         saleDate: null,
         sold: false,
         bedrooms: '',
@@ -38,19 +42,23 @@ export default function ListingForum() {
         description: ''
     });
 
-    // Image upload handler
     const handleImages = (e) => {
         const files = Array.from(e.target.files);
+        const newImages = [];
+        
         files.forEach(file => {
             const reader = new FileReader();
             reader.readAsDataURL(file);
             reader.onloadend = () => {
-                setImages(oldArray => [...oldArray, reader.result]);
+                newImages.push(reader.result);
+                // If we've processed all files, update state
+                if (newImages.length === files.length) {
+                    setImages(oldArray => [...oldArray, ...newImages]);
+                }
             };
         });
     };
 
-    // Form field change handler
     const handleForum = (e) => {
         const { name, value } = e.target;
         if (name.startsWith('address')) {
@@ -74,21 +82,30 @@ export default function ListingForum() {
         }
     };
 
-    // Form submission handler
     const submitForm = async (e) => {
         e.preventDefault();
         setLoading(true);
         try {
-            // Prepare the request data
+            // Get user data from localStorage
+            const userId = localStorage.getItem('userId');
+            const userName = localStorage.getItem('name');
+
+            if (!userId || !userName) {
+                throw new Error('User information not found. Please login again.');
+            }
+
             const requestData = {
                 images,
-                ...propertyData
+                ...propertyData,
+                listedBy: {
+                    listerID: userId,
+                    listerName: userName
+                }
             };
-    
-            // Log the request data before sending
-            console.log('Request Data:', JSON.stringify(requestData, null, 2)); // Log the request data in a readable format
-            
+
+            console.log('Request Data:', JSON.stringify(requestData, null, 2)); 
             const { data } = await axios.post('http://localhost:3001/api/property/new', requestData);
+            
             if (data.success === true) {
                 setLoading(false);
                 setImages([]);
@@ -103,7 +120,10 @@ export default function ListingForum() {
                     },
                     guidePrice: '',
                     currentBid: '',
-                    listedBy: '',
+                    listedBy: {
+                        listerID: '',
+                        listerName: ''
+                    },
                     saleDate: null,
                     sold: false,
                     bedrooms: '',
@@ -116,15 +136,11 @@ export default function ListingForum() {
             }
             console.log(data);
         } catch (error) {
-            const requestData = {
-                images,
-                ...propertyData
-            };
-            console.log(requestData);
-            console.error('Error submitting form:', error); // Log the error
+            console.error('Error submitting form:', error);
             setLoading(false);
         }
     };
+
     return (
         <LocalizationProvider dateAdapter={AdapterDayjs}>
             <Box
@@ -134,7 +150,7 @@ export default function ListingForum() {
                 autoComplete="off"
                 onSubmit={submitForm}
             >
-                {/* Address Information Section */}
+                {/* Previous form sections remain the same */}
                 <Box sx={boxStyle}>
                     <Typography variant="h6" sx={{ mb: 2 }}>Address Information</Typography>
                     <Grid container spacing={2}>
@@ -151,7 +167,7 @@ export default function ListingForum() {
                         </Grid>
                         <Grid item xs={12} sm={6}>
                             <TextField 
-                                required 
+                                 
                                 name="addressLine2" 
                                 label="Address Line 2" 
                                 variant="outlined" 
@@ -184,13 +200,20 @@ export default function ListingForum() {
                         <Grid item xs={12} sm={6}>
                             <TextField 
                                 required 
+                                select
                                 name="addressCounty" 
                                 label="County" 
                                 variant="outlined" 
                                 fullWidth 
                                 value={propertyData.address.addressCounty} 
-                                onChange={handleForum} 
-                            />
+                                onChange={handleForum}
+                            >
+                                {counties.map((county, index) => (
+                                    <MenuItem key={index} value={county.value}>
+                                        {county.label}
+                                    </MenuItem>
+                                ))}
+                            </TextField>
                         </Grid>
                         <Grid item xs={12} sm={6}>
                             <TextField 
@@ -206,7 +229,6 @@ export default function ListingForum() {
                     </Grid>
                 </Box>
 
-                {/* House Information Section */}
                 <Box sx={boxStyle}>
                     <Typography variant="h6" sx={{ mb: 2 }}>House Information</Typography>
                     <Grid container spacing={2}>
@@ -298,20 +320,29 @@ export default function ListingForum() {
                     </Grid>
                 </Box>
 
-                {/* Image Upload Section */}
                 <Box sx={boxStyle}>
                     <Typography variant="h6" sx={{ mb: 2 }}>Upload Pictures</Typography>
-                    <Button component="label" variant="contained" startIcon={<CloudUploadIcon />}>
-                        Upload Images
-                        <VisuallyHiddenInput
-                            type="file"
-                            onChange={handleImages}
-                            multiple
-                        />
-                    </Button>
+                    <Grid container spacing={2} alignItems="center">
+                        <Grid item>
+                            <Button component="label" variant="contained" startIcon={<CloudUploadIcon />}>
+                                Upload Images
+                                <VisuallyHiddenInput
+                                    type="file"
+                                    onChange={handleImages}
+                                    multiple
+                                />
+                            </Button>
+                        </Grid>
+                        <Grid item>
+                            <Typography>
+                                {images.length > 0 
+                                    ? `${images.length} ${images.length === 1 ? 'image' : 'images'} uploaded`
+                                    : ''}
+                            </Typography>
+                        </Grid>
+                    </Grid>
                 </Box>
                 
-        
                 <Button type="submit" variant="contained" disabled={loading}>
                     {loading ? 'Submitting...' : 'Submit Listing'}
                 </Button>

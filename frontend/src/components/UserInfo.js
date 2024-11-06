@@ -15,7 +15,6 @@ import {
   List,
   ListItem,
   ListItemText,
-  ListItemSecondary,
   Paper,
   Divider
 } from '@mui/material';
@@ -33,7 +32,6 @@ const VisuallyHiddenInput = styled('input')({
 export default function UserInfo() {
   const [avatar, setAvatar] = useState(null);
   const [files, setFiles] = useState([]);
-  const [dob, setDob] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [userData, setUserData] = useState({
@@ -103,18 +101,7 @@ export default function UserInfo() {
     });
   };
 
-  const handleFileDownload = async (file) => {
-    try {
-        const link = document.createElement('a');
-        link.href = file.url;
-        link.setAttribute('download', file.filename || 'download');
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    } catch (error) {
-        console.error('Error downloading file:', error);
-    }
-  };
+  
 
   const handleDeleteFile = async (index) => {
     const fileToDelete = files[index];
@@ -152,15 +139,14 @@ export default function UserInfo() {
     const userId = localStorage.getItem('userId');
     setLoading(true);
     try {
-        // Process files - only send the current files array
+       
         const processedFiles = files.map(file => ({
-            _id: file._id, // Include _id for existing files
+            _id: file._id, 
             url: file.isNew ? file.url : file.url,
             filename: file.filename,
             type: file.type
         }));
-        
-        // Send the current state of files
+      
         await axios.put(`http://localhost:3001/api/user/edit/${userId}`, {
             ...userData,
             avatar: avatar,
@@ -171,7 +157,6 @@ export default function UserInfo() {
         setIsEditing(false);
     } catch (error) {
         console.error('Error updating user:', error);
-        // If there's an error, fetch the latest data to ensure consistency
         fetchUserDetails(userId);
     } finally {
         setLoading(false);

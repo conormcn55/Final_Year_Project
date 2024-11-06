@@ -28,10 +28,11 @@ const Profile = () => {
 
                 console.log('User Data:', user);
                 setUserData(user);
-                const { email, avatar, _id } = user; 
+                const { email, avatar, _id,name } = user; 
                 localStorage.setItem('email', email);
                 localStorage.setItem('avatar', JSON.stringify(avatar));
                 localStorage.setItem('userId', _id); 
+                localStorage.setItem('name',name);
 
             } catch (error) {
                 console.error('Failed to fetch user data:', error);
