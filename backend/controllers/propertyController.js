@@ -1,6 +1,5 @@
 const Property = require('../models/property');
-const cloudinary=require('../utils/cloudinary')
-
+const cloudinary = require('../utils/cloudinary');
 
 exports.getAllProperties = async (req, res) => {
     try {
@@ -14,37 +13,39 @@ exports.getAllProperties = async (req, res) => {
 
 exports.createProperty = async (req, res) => {
     try {
-
         let images = [...req.body.images];
         let imagesBuffer = [];
 
-        for (let i =0; i < images.length;  i++){
-              const result = await cloudinary.uploader.upload(images[i], {
-              folder: "properties",
-              width: 1920,
-              crop: "scale"
-        });
+        for (let i = 0; i < images.length; i++) {
+            const result = await cloudinary.uploader.upload(images[i], {
+                folder: "properties",
+                width: 1920,
+                crop: "scale"
+            });
 
-        imagesBuffer.push({
-            public_id: result.public_id,
-            url: result.secure_url
-          })
+            imagesBuffer.push({
+                public_id: result.public_id,
+                url: result.secure_url
+            })
         }
+
         const property = new Property({
             address: req.body.address,
-            guidePrice: req.body.guidePrice, 
-            currentBid: req.body.currentBid,
-            currentBidderID: req.body.currentBidderID,
-            listedBy: req.body.listedBy, 
+            guidePrice: req.body.guidePrice,
+            currentBid: {
+                bidId: req.body.currentBid?.bidId || false,
+                amount: req.body.currentBid?.amount || req.body.guidePrice
+            },
+            listedBy: req.body.listedBy,
             images: imagesBuffer,
             saleDate: req.body.saleDate,
-            sold: req.body.sold, 
-            bedrooms: req.body.bedrooms, 
-            bathrooms: req.body.bathrooms, 
-            sqdMeters: req.body.sqdMeters, 
-            propertyType: req.body.propertyType, 
+            sold: req.body.sold,
+            bedrooms: req.body.bedrooms,
+            bathrooms: req.body.bathrooms,
+            sqdMeters: req.body.sqdMeters,
+            propertyType: req.body.propertyType,
             listingType: req.body.listingType,
-            description: req.body.description 
+            description: req.body.description
         });
 
         const savedProperty = await property.save();
@@ -62,7 +63,6 @@ exports.createProperty = async (req, res) => {
         });
     }
 };
-
 exports.deleteProperty = async (req, res) => {
     try {
         const result = await Property.findByIdAndDelete(req.params.id);
@@ -169,10 +169,6 @@ exports.searchProperties = async (req, res) => {
 
         const properties = await Property.find(query).sort(sortOptions);
 
-        console.log('Search Query:', JSON.stringify(query, null, 2));
-        console.log('Location Terms:', { town, county });
-        console.log('Results Found:', properties.length);
-
         if (!properties.length) {
             return res.status(404).json({ 
                 message: 'No properties found matching the search criteria',
@@ -229,5 +225,96 @@ exports.deleteAllProperties = async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Error deleting properties' });
+    }
+};
+
+exports.updateCurrentBid = async (req, res) => {
+    try {
+        const propertyId = req.params.id;
+        const { bidId, amount } = req.body;
+
+        const property = await Property.findById(propertyId);
+
+        if (!property) {
+            return res.status(404).json({ message: 'Property not found' });
+        }
+
+        property.currentBid = {
+            bidId,
+            amount
+        };
+        const currentSaleDate = new Date(property.saleDate);
+        property.saleDate = new Date(currentSaleDate.getTime() + (2 * 60 * 1000));
+
+        await property.save();
+
+        res.status(200).json({
+            success: true,
+            message: 'Current bid updated and sale date extended by 2 minutes',
+            property: {
+                ...property._doc,
+                previousSaleDate: currentSaleDate,
+                newSaleDate: property.saleDate
+            }
+        });
+    } catch (error) {
+        console.error('Update bid error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to update bid',
+            error: error.message
+        });
+    }
+};
+exports.getSaleSoon = async (req, res) => {
+    try {
+        const currentTime = new Date();
+        const properties = await Property.find({
+            sold: false,
+            saleDate: { $gt: currentTime }
+        })
+        .sort({ saleDate: 1 }) 
+        .limit(10); 
+        const propertiesWithTimeRemaining = properties.map(property => ({
+            ...property.toObject(),
+            timeRemaining: property.saleDate - currentTime
+        }))
+        propertiesWithTimeRemaining.sort((a, b) => a.timeRemaining - b.timeRemaining);
+
+        if (!propertiesWithTimeRemaining.length) {
+            return res.status(404).json({ 
+                message: 'No properties ending soon' 
+            });
+        }
+
+        res.json(propertiesWithTimeRemaining);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ 
+            message: 'Error retrieving properties ending soon',
+            error: error.message 
+        });
+    }
+};
+
+exports.getRecentlyListed = async (req, res) => {
+    try {
+        const recentProperties = await Property.find({ sold: false })
+            .sort({ createdAt: -1 }) // Sort by most recently created
+            .limit(10); // Limit to 10 most recent properties
+
+        if (!recentProperties.length) {
+            return res.status(404).json({ 
+                message: 'No recently listed properties found' 
+            });
+        }
+
+        res.json(recentProperties);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ 
+            message: 'Error retrieving recently listed properties',
+            error: error.message 
+        });
     }
 };

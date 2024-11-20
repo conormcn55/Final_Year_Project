@@ -1,27 +1,27 @@
 const mongoose = require('mongoose');
-const Schema= mongoose.Schema;
+const Schema = mongoose.Schema;
 
 const PropertySchema = new Schema({
-    address:{
-        addressLine1:{type:String,required:true},
-        addressLine2:{type:String,required:false},
-        addressLine3:{type:String,required:false},
-        addressTown:{type:String,required:true},
-        addressCounty:{type:String,required:true},
-        addressEirecode:{type:String,required:true},
+    address: {
+        addressLine1: { type: String, required: true },
+        addressLine2: { type: String, required: false },
+        addressLine3: { type: String, required: false },
+        addressTown: { type: String, required: true },
+        addressCounty: { type: String, required: true },
+        addressEirecode: { type: String, required: true },
     },
-    guidePrice:{
+    guidePrice: {
         type: Number,
         default: false,
         required: true
     },
-    currentBid:{
-        type: String,
-        default: false 
+    currentBid: {
+        bidId: { type: String, default: false },
+        amount: { type: Number, required: true },
     },
-    listedBy:{
-        listerID:{type:String,required:true},
-        listerName:{type:String,required:true},
+    listedBy: {
+        listerID: { type: String, required: true },
+        listerName: { type: String, required: true },
     },
     images: [
         {
@@ -33,46 +33,48 @@ const PropertySchema = new Schema({
                 type: String,
                 required: true
             }
-        }],
-    saleDate:{
-        type:String,
-        default: false,
-        required: true
-    },
-    sold:{
-        type: Boolean,
-        default: false
-    },
-    bedrooms:{
-        type: Number,
-        default: false,
-        required: true
-    },
-    bathrooms:{
-        type: Number,
-        default: false,
-        required: true
-    },
-    sqdMeters:{
-        type: Number,
-        default: false,
-        required: true
-    },
-    propertyType:{
+        }
+    ],
+    saleDate: {
         type: String,
         default: false,
         required: true
     },
-    listingType:{
+    sold: {
+        type: Boolean,
+        default: false
+    },
+    bedrooms: {
+        type: Number,
+        default: false,
+        required: true
+    },
+    bathrooms: {
+        type: Number,
+        default: false,
+        required: true
+    },
+    sqdMeters: {
+        type: Number,
+        default: false,
+        required: true
+    },
+    propertyType: {
+        type: String,
+        default: false,
+        required: true
+    },
+    listingType: {
         type: String,
         default: "sale",
         required: true
     },
-    description:{
+    description: {
         type: String,
         default: "sale",
         required: true
     }
-})
-const Property = mongoose.model("Property",PropertySchema);
-module.exports =Property;
+}, { timestamps: true }); 
+
+const Property = mongoose.model("Property", PropertySchema);
+module.exports = Property;

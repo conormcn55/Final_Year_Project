@@ -24,17 +24,19 @@ import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import CloseIcon from '@mui/icons-material/Close';
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
 import axios from 'axios';
+import useUserData from '../utils/useUserData';
 
 const VisuallyHiddenInput = styled('input')({
   display: 'none',
 });
 
 export default function UserInfo() {
+  const userData = useUserData();
   const [avatar, setAvatar] = useState(null);
   const [files, setFiles] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [userData, setUserData] = useState({
+  const [formData, setFormData] = useState({
     name: '',
     email: '',
     description: '',
@@ -44,43 +46,24 @@ export default function UserInfo() {
   });
 
   useEffect(() => {
-    const userId = localStorage.getItem('userId');
-    if (userId) {
-      fetchUserDetails(userId);
-    }
-  }, []);
-
-  const fetchUserDetails = async (userId) => {
-    try {
-      const response = await axios.get(`http://localhost:3001/api/user/${userId}`);
-      const user = response.data;
-
-      setUserData({
-        name: user.name,
-        email: user.email,
-        description: user.description,
-        userType: user.userType,
-        regNumber: user.regNumber,
-        number: user.number
+    if (userData) {
+      setAvatar(userData.avatar?.url || null);
+      setFiles(userData.files || []);
+      setFormData({
+        name: userData.name || '',
+        email: userData.email || '',
+        description: userData.description || '',
+        userType: userData.userType || '',
+        regNumber: userData.regNumber || '',
+        number: userData.number || ''
       });
-      setAvatar(user.avatar?.url);
-      if (user.files) {
-        // Ensure we keep the _id from the database for existing files
-        setFiles(user.files.map(file => ({
-          ...file,
-          isExisting: true,
-          _id: file._id // Make sure we keep the _id
-        })));
-      }
-    } catch (error) {
-      console.error('Error fetching user details:', error);
     }
-  };
+  }, [userData]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setUserData({
-      ...userData,
+    setFormData({
+      ...formData,
       [name]: value,
     });
   };
@@ -88,30 +71,27 @@ export default function UserInfo() {
   const handleFiles = (e) => {
     const uploadedFiles = Array.from(e.target.files);
     uploadedFiles.forEach(file => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onloadend = () => {
-            setFiles(prevFiles => [...prevFiles, {
-                url: reader.result,
-                name: file.name,
-                filename: file.name, 
-                isNew: true
-            }]);
-        };
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onloadend = () => {
+        setFiles(prevFiles => [...prevFiles, {
+          url: reader.result,
+          filename: file.name, 
+          isNew: true
+        }]);
+      };
     });
   };
 
-  
-
   const handleDeleteFile = async (index) => {
     const fileToDelete = files[index];
-    const userId = localStorage.getItem('userId');
     
-    console.log('File to delete:', fileToDelete);  // Debugging statement
-  
-    if (fileToDelete.isExisting && fileToDelete._id) {
+    if (fileToDelete._id && !fileToDelete.isNew) {
       try {
-        const response = await axios.delete(`http://localhost:3001/api/user/removefile/${userId}/files/${fileToDelete._id}`);
+        const response = await axios.delete(
+          `http://localhost:3001/api/user/removefile/${userData._id}/files/${fileToDelete._id}`,
+          { credentials: 'include' }
+        );
         if (response.status === 200) {
           setFiles(prevFiles => prevFiles.filter((_, i) => i !== index));
         }
@@ -119,7 +99,6 @@ export default function UserInfo() {
         console.error('Error deleting file:', error);
       }
     } else {
-      console.log("File doesn't meet deletion criteria", fileToDelete);  // Add a log to see why it's not deleting
       setFiles(prevFiles => prevFiles.filter((_, i) => i !== index));
     }
   };
@@ -136,30 +115,31 @@ export default function UserInfo() {
   };
 
   const handleSave = async () => {
-    const userId = localStorage.getItem('userId');
     setLoading(true);
     try {
-       
-        const processedFiles = files.map(file => ({
-            _id: file._id, 
-            url: file.isNew ? file.url : file.url,
-            filename: file.filename,
-            type: file.type
-        }));
+      const processedFiles = files.map(file => ({
+        _id: file._id, 
+        url: file.isNew ? file.url : file.url,
+        filename: file.filename,
+        type: file.type
+      }));
       
-        await axios.put(`http://localhost:3001/api/user/edit/${userId}`, {
-            ...userData,
-            avatar: avatar,
-            files: processedFiles
-        });
+      await axios.put(
+        `http://localhost:3001/api/user/edit/${userData._id}`,
+        {
+          ...formData,
+          avatar: avatar,
+          files: processedFiles
+        },
+        { credentials: 'include' }
+      );
 
-        console.log('User updated successfully');
-        setIsEditing(false);
+      console.log('User updated successfully');
+      setIsEditing(false);
     } catch (error) {
-        console.error('Error updating user:', error);
-        fetchUserDetails(userId);
+      console.error('Error updating user:', error);
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
   };
 
@@ -207,24 +187,22 @@ export default function UserInfo() {
               </Box>
               <Box sx={{ flexGrow: 1 }}>
                 <TextField
-                  required
                   name="name"
-                  label='Name'
-                  value={userData.name}
+                  label="Name"
+                  value={formData.name}
                   variant="outlined"
-                  sx={{ width: '50%', marginBottom: 2 , marginTop: 2}}
-                  disabled
+                  sx={{ width: '50%', marginBottom: 2, marginTop: 2 }}
+                  disabled={!isEditing}
                   onChange={handleInputChange}
                 />
                 <Box>
                   <TextField
-                    required
                     name="email"
-                    label='Email'
-                    value={userData.email}
+                    label="Email"
+                    value={formData.email}
                     variant="outlined"
-                    sx={{width: '50%', marginBottom: 2 , marginTop: 2 }}
-                    disabled
+                    sx={{ width: '50%', marginBottom: 2, marginTop: 2 }}
+                    disabled={!isEditing}
                     onChange={handleInputChange}
                   />
                 </Box>
@@ -235,55 +213,56 @@ export default function UserInfo() {
               required
               name="number"
               label="Phone Number"
-              value={userData.number}
+              value={formData.number}
               variant="outlined"
-              sx={{ width: '60%', marginBottom: 2 ,marginTop: 2}}
+              sx={{ width: '60%', marginBottom: 2, marginTop: 2 }}
               disabled={!isEditing}
               onChange={handleInputChange}
               type="tel"
             />
             <Box>
-            <TextField
-              required
-              name="description"
-              label='Description'
-              value={userData.description}
-              variant="outlined"
-              sx={{ width: '60%', marginBottom: 2 ,marginTop: 2}}
-              disabled={!isEditing}
-              onChange={handleInputChange}
-            />
-          </Box>
-            <FormControl sx={{ width: '60%', marginBottom: 2 ,marginTop: 2}}>
+              <TextField
+                required
+                name="description"
+                label="Description"
+                value={formData.description}
+                variant="outlined"
+                sx={{ width: '60%', marginBottom: 2, marginTop: 2 }}
+                disabled={!isEditing}
+                onChange={handleInputChange}
+              />
+            </Box>
+            <FormControl sx={{ width: '60%', marginBottom: 2, marginTop: 2 }}>
               <InputLabel id="userType-label">User Type</InputLabel>
               <Select
                 labelId="userType-label"
                 name="userType"
-                value={userData.userType}
+                value={formData.userType}
                 label="User Type"
                 disabled={!isEditing}
                 onChange={handleInputChange}
               >
-                <MenuItem value={'default'}>Default</MenuItem>
-                <MenuItem value={'landlord'}>Landlord</MenuItem>
-                <MenuItem value={'estate agent'}>Estate Agent</MenuItem>
+                <MenuItem value="default">Default</MenuItem>
+                <MenuItem value="landlord">Landlord</MenuItem>
+                <MenuItem value="estate agent">Estate Agent</MenuItem>
               </Select>
             </FormControl>
 
-            {userData.userType !== 'default' && (
+            {formData.userType !== 'default' && (
               <TextField
                 required
                 name="regNumber"
-                label='Registration Number'
-                value={userData.regNumber}
+                label="Registration Number"
+                value={formData.regNumber}
                 variant="outlined"
-                sx={{ width: '60%', marginBottom: 2 ,marginTop: 2}}
+                sx={{ width: '60%', marginBottom: 2, marginTop: 2 }}
                 disabled={!isEditing}
                 onChange={handleInputChange}
               />
             )}
           </Grid>
 
+          {/* Right side - Documents */}
           <Grid item xs={12} md={4}>
             <Paper sx={{ p: 2, height: '100%' }}>
               <Typography variant="h6" gutterBottom>
@@ -309,51 +288,36 @@ export default function UserInfo() {
                   </Button>
                 </Box>
               )}
-
-<List>
-            {files.map((file, index) => (
-                <ListItem
+              <List>
+                {files.map((file, index) => (
+                  <ListItem
                     key={file._id || index}
                     secondaryAction={
-                        isEditing && (
-                            <IconButton 
-                                edge="end" 
-                                aria-label="delete"
-                                onClick={() => handleDeleteFile(index)}
-                            >
-                                <CloseIcon />
-                            </IconButton>
-                        )
-                    }
-                >
-                    <InsertDriveFileIcon sx={{ mr: 1 }} />
-                    {!isEditing ? (
-                        <a 
-                            href={file.url} 
-                            download={file.filename}
-                            style={{ 
-                                textDecoration: 'none', 
-                                color: 'inherit',
-                                display: 'block',
-                                width: '100%'
-                            }}
+                      isEditing && (
+                        <IconButton 
+                          edge="end" 
+                          aria-label="delete"
+                          onClick={() => handleDeleteFile(index)}
                         >
-                            <ListItemText 
-                                primary={file.filename || `File ${index + 1}`}
-                            />
+                          <CloseIcon />
+                        </IconButton>
+                      )
+                    }
+                  >
+                    <InsertDriveFileIcon sx={{ mr: 1 }} />
+                    <ListItemText
+                      primary={
+                        <a href={file.url} target="_blank" rel="noopener noreferrer">
+                          {file.filename}
                         </a>
-                    ) : (
-                        <ListItemText 
-                            primary={file.filename || `File ${index + 1}`}
-                        />
-                    )}
-                </ListItem>
-            ))}
-        </List>
+                      }
+                    />
+                  </ListItem>
+                ))}
+              </List>
             </Paper>
           </Grid>
         </Grid>
-
         <Box sx={{ mt: 3 }}>
           {isEditing && (
             <Button

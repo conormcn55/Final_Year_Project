@@ -4,7 +4,6 @@ import {
   BrowserRouter as Router,
   Route,
   Routes,
-  useNavigate,
 } from "react-router-dom";
 import AppBar from "@mui/material/AppBar";
 import Box from "@mui/material/Box";
@@ -20,12 +19,15 @@ import Tooltip from "@mui/material/Tooltip";
 import MenuItem from "@mui/material/MenuItem";
 import Home from "../pages/Home";
 import CreateListing from "../pages/CreateListing";
-import Profile from "../pages/Profile";
+import UserProfile from "../pages/UserProfile";
+import OtherProfiles from "../pages/OtherProfiles";
 import HistoricSales from "../pages/HistoricSales";
-import SearchBar from "./SearchBar";
 import SearchResults from "./SearchResults";
-import PropertyPage from "../pages/PropertyPage"
+import PropertyPage from "../pages/PropertyPage";
+import Approval from "../pages/Approval";
 import HouseIcon from '@mui/icons-material/House';
+import useUserData from '../utils/useUserData';
+import logo from '../images/logo.png';
 
 const pages = [
   { label: "Create Listing", path: "/createlisting" },
@@ -35,36 +37,8 @@ const pages = [
 export default function NavBar() {
   const [anchorElNav, setAnchorElNav] = React.useState(null);
   const [anchorElUser, setAnchorElUser] = React.useState(null);
-  const [user, setUser] = React.useState(null);
-  const [avatarUrl, setAvatarUrl] = React.useState(null); 
-
+  const userData = useUserData();
  
-
-  React.useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const response = await fetch('http://localhost:3001/api/user/me', {
-          credentials: 'include' 
-        });
-        if (response.ok) {
-          const userData = await response.json();
-          setUser(userData);
-        }
-      } catch (error) {
-        console.error('Auth check failed:', error);
-      }
-    };
-
-    checkAuth();
-  }, []);
-
-  React.useEffect(() => {
-    const storedAvatar = localStorage.getItem('avatar');
-    if (storedAvatar) {
-      const avatarObj = JSON.parse(storedAvatar); // Assuming avatar is stored as an object
-      setAvatarUrl(avatarObj.url); // Set the avatar URL from local storage
-    }
-  }, []);
   const handleOpenNavMenu = (event) => {
     setAnchorElNav(event.currentTarget);
   };
@@ -87,7 +61,6 @@ export default function NavBar() {
         method: 'GET',
         credentials: 'include'
       });
-      setUser(null);
       window.location.href = '/';
     } catch (error) {
       console.error('Logout failed:', error);
@@ -99,12 +72,25 @@ export default function NavBar() {
     window.location.href = '/profile';
   };
 
+  const handleApprovalClick = () => {
+    handleCloseUserMenu();
+    window.location.href = '/approval';
+  };
+
   return (
     <Router>
       <AppBar position="static">
         <Container maxWidth="xl">
           <Toolbar disableGutters>
-            <HouseIcon sx={{ display: { xs: "none", md: "flex" }, mr: 1 }} />
+          <img 
+              src={logo}
+              alt="Logo"
+              style={{ 
+                display: { xs: "none", md: "flex" },
+                marginRight: "8px",
+                height: "32px" // Adjust this value based on your needs
+              }}
+            />
             <Typography
               variant="h6"
               noWrap
@@ -120,7 +106,7 @@ export default function NavBar() {
                 textDecoration: "none",
               }}
             >
-              Project
+              Bid Bud
             </Typography>
 
             <Box sx={{ flexGrow: 1, display: { xs: "flex", md: "none" } }}>
@@ -181,16 +167,21 @@ export default function NavBar() {
                 textDecoration: "none",
               }}
             >
-              Project
+              Bid Bud
             </Typography>
 
-            
-            <Box sx={{ flexGrow: 1, display: { xs: "none", md: "flex" } }}>
+            <Box 
+              sx={{ 
+                flexGrow: 1, 
+                display: { xs: "none", md: "flex" }, 
+                justifyContent: "center"  // Center the buttons
+              }}
+            >
               {pages.map((page) => (
                 <Button
                   key={page.label}
                   onClick={handleCloseNavMenu}
-                  sx={{ my: 2, color: "white", display: "block" }}
+                  sx={{ my: 2, color: "inherit", display: "block" }}
                 >
                   <Link
                     to={page.path}
@@ -203,19 +194,19 @@ export default function NavBar() {
             </Box>
 
             <Box sx={{ flexGrow: 0 }}>
-              {user ? (
+              {userData._id ? (
                 <Tooltip title="Open settings">
                   <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
                     <Avatar
-                      alt= {avatarUrl  || "User Avatar"}
-                      src={avatarUrl || "/static/images/avatar/2.jpg"}
+                      alt={userData.name || "User Avatar"}
+                      src={userData.avatar?.url || "/static/images/avatar/2.jpg"}
                     />
                   </IconButton>
                 </Tooltip>
               ) : (
                 <Button
                   variant="contained"
-                  color="secondary"
+                  color=""
                   href="http://localhost:3001/api/user/auth/google"
                   sx={{ my: 2 }}
                 >
@@ -244,20 +235,24 @@ export default function NavBar() {
                 <MenuItem onClick={handleSignOut}>
                   <Typography textAlign="center">Sign Out</Typography>
                 </MenuItem>
+                <MenuItem onClick={handleApprovalClick}>
+                  <Typography textAlign="center">Bidding Requests</Typography>
+                </MenuItem>
               </Menu>
             </Box>
           </Toolbar>
         </Container>
       </AppBar>
-    <Routes>
-      <Route path="/" element={<Home />} />
-      <Route path="/createlisting" element={<CreateListing />} />
-      <Route path="/profile" element={<Profile />} />
-      <Route path="/housessold" element={<HistoricSales />} />
-      <Route path="/search-results" element={<SearchResults />} />
-      <Route path="/property/:id" element={<PropertyPage />} /> {/* New route */}
-    </Routes>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/createlisting" element={<CreateListing />} />
+        <Route path="/profile" element={<UserProfile />} />
+        <Route path="/profile/:id" element={<OtherProfiles />} />
+        <Route path="/housessold" element={<HistoricSales />} />
+        <Route path="/search-results" element={<SearchResults />} />
+        <Route path="/property/:id" element={<PropertyPage />} /> 
+        <Route path="/approval" element={<Approval />} />
+      </Routes>
     </Router>
   );
 }
-

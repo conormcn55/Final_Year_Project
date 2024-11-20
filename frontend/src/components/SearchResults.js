@@ -7,7 +7,6 @@ import {
   CardHeader,
   CardMedia,
   CardContent,
-  CardActions,
   Typography,
   Grid,
   IconButton,
@@ -53,8 +52,7 @@ const formatDateTime = (dateString) => {
 };
 
 const PropertyCard = ({ property }) => {
-    const navigate = useNavigate();
-    const handleCardClick = () => navigate(`/property/${property._id}`);
+
     const {
       address,
       bathrooms,
@@ -95,7 +93,7 @@ const PropertyCard = ({ property }) => {
           title={formatAddress(address)}
           subheader={
             <Box sx={{ mt: 1 }}>
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" color="text.primary">
                 {propertyType} - {listingType.charAt(0).toUpperCase() + listingType.slice(1)}
               </Typography>
             </Box>
@@ -105,11 +103,11 @@ const PropertyCard = ({ property }) => {
         
         <CardContent sx={{ flexGrow: 1, pt: 0, pb: 1 }}>
           <Box sx={{ mb: 2 }}>
-            <Typography variant="h6" color="primary" gutterBottom>
-             Current Bid: €{currentBid?.toLocaleString()}
+            <Typography variant="h6" color="text.primary" gutterBottom>
+             Current Bid: €{currentBid.amount?.toLocaleString()}
             </Typography>
             
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" color="text.primary">
               Guide Price: €{guidePrice?.toLocaleString()} 
               </Typography>
             {sold && (
@@ -152,12 +150,12 @@ const PropertyCard = ({ property }) => {
           
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, justifyContent: 'space-between' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <CalendarToday color="primary" />
+              <CalendarToday color="text.primary" />
               <Box>
                 <Typography variant="body1" sx={{ fontWeight: 'medium' }}>
                   {date}
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="text.primary">
                   {time}
                 </Typography>
               </Box>

@@ -169,8 +169,8 @@ exports.updateUser = async (req, res) => {
 exports.deleteFiles = async (req, res) => {
     try {
         const { userId, fileId } = req.params;
-        console.log('User ID:', userId);  // Debugging statement
-        console.log('File ID:', fileId);  // Debugging statement
+      //  console.log('User ID:', userId);  // Debugging statement
+     //   console.log('File ID:', fileId);  // Debugging statement
         
         const result = await User.findByIdAndUpdate(userId, {
           $pull: { files: { _id: fileId } }
@@ -208,6 +208,37 @@ exports.deleteUser = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Failed to delete User',
+            error: error.message,
+        });
+    }
+};
+
+exports.getUserBasicInfo= async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const user = await User.findById(userId).select('name _id avatar');
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found',
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'User information retrieved successfully',
+            user: {
+                id: user._id,
+                name: user.name,
+                avatar: user.avatar
+            },
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to retrieve user information',
             error: error.message,
         });
     }

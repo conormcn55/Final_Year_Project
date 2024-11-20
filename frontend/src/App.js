@@ -6,18 +6,17 @@ const style = createTheme({
   palette: {
     mode: 'light',
     primary: {
-      main: '#123871',
-      light: '#a6b1d2',
+      main: '#ffffff',
+      contrastText: '#123871',
     },
     secondary: {
-      main: 'rgba(0,154,245,0.86)',
+      main: '#123871',
     },
     background: {
-      default: '#d4d4d6',
-      paper: '#fffefe',
+      paper: '#efefef',
     },
     text: {
-      primary: 'rgba(24,22,22,0.87)',
+      primary: '#123871',
     },
   },
 });

@@ -89,4 +89,5 @@ router.get('/:id', async (req, res) => {
 router.put('/edit/:id', userController.updateUser);
 router.delete('/delete/:id', userController.deleteUser);
 router.delete('/removefile/:userId/files/:fileId', userController.deleteFiles);
+router.get('/basic/:id', userController.getUserBasicInfo);
 module.exports = router;
