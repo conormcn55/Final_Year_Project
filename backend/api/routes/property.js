@@ -13,6 +13,7 @@ router.get('/search', propertyController.searchProperties);
 router.get('/:id', propertyController.getProperty);
 router.delete('/clearProps', propertyController.deleteAllProperties);
 router.put('/:id/bid', propertyController.updateCurrentBid);
+router.post('/ids', propertyController.getPropertiesByIds);
 
 
 

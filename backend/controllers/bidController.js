@@ -39,3 +39,16 @@ exports.getBidsForProperty = async (req, res) => {
       res.status(500).json({ message: 'Error retrieving bids for the property' });
     }
   };
+  exports.getBidById = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const bid = await Bid.findById(id);
+        if (!bid) {
+            return res.status(404).json({ message: 'Bid not found' });
+        }
+        res.json(bid);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error retrieving the bid' });
+    }
+};

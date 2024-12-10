@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams ,useNavigate} from 'react-router-dom';
 import axios from 'axios';
 import { Box, Typography, TextField, Button, Card, CardContent, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Collapse, IconButton, Divider } from '@mui/material';
 import { CalendarToday, ExpandMore, ExpandLess } from '@mui/icons-material';
@@ -27,6 +27,7 @@ const formatDateTime = (dateString) => {
 
 export default function Bid() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [bid, setBid] = useState("");
   const [latestBid, setLatestBid] = useState({ bid: null });
   const [approver, setApprover] = useState(null);
@@ -39,10 +40,11 @@ export default function Bid() {
   const [bids, setBids] = useState([]);
   const [showBids, setShowBids] = useState(false);
   const [isApproved, setIsApproved] = useState();
+  const [winningBid, setWinningBid] = useState(null);
   const { _id: userId, name: userName } = useUserData();
   const [requestPending, setRequestPending] = useState(false);
   const [amountAllowed, setAmountAllowed] = useState(null);
-  const [biddingEnded, setBiddingEnded] = useState(false); // NEW STATE
+  const [biddingEnded, setBiddingEnded] = useState(false); 
 
   useEffect(() => {
     const fetchPropertyInfo = async () => {
@@ -53,7 +55,17 @@ export default function Bid() {
           setGuidePrice(data.guidePrice);
           setApprover(data.listedBy.listerID);
           setSaleDate(data.saleDate);
-
+          const saleTime = new Date(data.saleDate);
+          const now = new Date();
+          if (saleTime < now && !data.sold) {
+            try {
+              await axios.put(`http://localhost:3001/api/property/sold/${id}`);
+              setBiddingEnded(true);
+            } catch (error) {
+              console.error('Error marking property as sold:', error);
+            }
+          }
+  
           const approvalResponse = await axios.get(`http://localhost:3001/api/request/check/${userId}/${id}`);
           setIsApproved(approvalResponse.data.approved);
           setRequestPending(approvalResponse.data.exists && !approvalResponse.data.approved);
@@ -87,7 +99,17 @@ export default function Bid() {
           setTimeLeft(`${days}d ${hours}h ${minutes}m ${seconds}s`);
         } else {
           setTimeLeft("Bidding has ended for this property.");
-          setBiddingEnded(true); 
+          setBiddingEnded(true);
+ 
+          const markPropertyAsSold = async () => {
+            try {
+              await axios.put(`http://localhost:3001/api/property/sold/${id}`);
+            } catch (error) {
+              console.error('Error marking property as sold:', error);
+            }
+          };
+
+          markPropertyAsSold();
         }
       }
     };
@@ -221,6 +243,36 @@ export default function Bid() {
     }
   };
 
+  useEffect(() => {
+    if (bids && bids.length > 0) {
+      const recentBid = bids.reduce((latest, bid) => {
+        return new Date(bid.time) > new Date(latest.time) ? bid : latest;
+      });
+      setWinningBid(recentBid.userId);
+    }
+  }, [bids]);
+  const handleMessageSeller = async () => {
+    try {
+      const roomResponse = await axios.post('http://localhost:3001/api/room/new', {
+        bidder: userId,
+        owner: approver
+      });
+  
+      // Navigate to messages page if room is created or already exists
+      if (roomResponse.data && (roomResponse.data._id || roomResponse.data.message === "Room already exists")) {
+        navigate('/messages');
+      }
+    } catch (error) {
+      console.error('Error creating room:', error);
+      
+      // Check if the error response indicates an existing room
+      if (error.response && error.response.data.message === "Room already exists") {
+        navigate('/messages');
+      } else {
+        setError('Failed to create messaging room. Please try again.');
+      }
+    }
+  };
   return (
     <Box>
       <Card sx={{ position: 'sticky', top: '1rem' }}>
@@ -263,81 +315,112 @@ export default function Bid() {
             Current Bid: €{latestBid?.bid?.toLocaleString() || "N/A"}
           </Typography>
 
-          {/* Bid Submission Section with Bidding End Logic */}
-          {!biddingEnded && (
-            <Box sx={{ mb: 2 }}>
-              {error && (
-                <Typography color="error" variant="caption" sx={{ mb: 1, display: 'block' }}>
-                  {error}
-                </Typography>
-              )}
-
-              {isApproved ? (
-                <>
-                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
-                    Your approved bid limit: €{amountAllowed?.toLocaleString()}
-                  </Typography>
-                  <TextField
-                    color='text.primary'
-                    size="small"
-                    fullWidth
-                    label="Enter Bid"
-                    value={bid}
-                    onChange={(event) => {
-                      setBid(event.target.value);
-                    }}
-                    sx={{ mb: 1 }}
-                  />
-                  <Button
-                    fullWidth
-                    variant="contained"
-                    size="small"
-                    onClick={submitBid}
-                    disabled={!bid}
-                    sx={{ 
-                      bgcolor: '#123871',
-                      color: "white"
-                    }}
-                  >
-                    Submit Bid
-                  </Button>
-                </>
-              ) : (
-                <Box sx={{ textAlign: 'center' }}>
-                  <Typography 
-                    variant="body2" 
-                    sx={{ 
-                      mb: 1,
-                      color: requestPending ? '#666' : '#123871'
-                    }}
-                  >
-                    {requestPending 
-                      ? ''
-                      : 'You need approval to place bids on this property'}
-                  </Typography>
-                  <Button
-                    fullWidth
-                    variant="contained"
-                    size="small"
-                    onClick={requestApproval}
-                    disabled={requestPending}
-                    sx={{ 
-                      color: "white",
-                      bgcolor: requestPending ? '#ccc' : '#123871',
-                      '&:hover': {
-                        bgcolor: requestPending ? '#ccc' : '#1a4c94'
-                      },
-                      '&.Mui-disabled': {
-                        bgcolor: '#ccc',
-                        color: '#666'
-                      }
-                    }}
-                  >
-                    {requestPending ? 'Approval Pending' : 'Request Approval'}
-                  </Button>
-                </Box>
-              )}
+          {biddingEnded && winningBid === userId ? (
+            <Box sx={{ 
+              bgcolor: '#4CAF50', 
+              color: 'white', 
+              p: 2, 
+              borderRadius: 1, 
+              textAlign: 'center',
+              mb: 2 
+            }}>
+              <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>
+                Congratulations! 
+              </Typography>
+              <Typography variant="body1" sx={{ mb: 2 }}>
+                You have won this property auction.
+              </Typography>
+              <Button
+                fullWidth
+                variant="contained"
+                sx={{ 
+                  bgcolor: 'white', 
+                  color: '#123871',
+                  '&:hover': {
+                    bgcolor: '#f0f0f0'
+                  }
+                }}
+                onClick={handleMessageSeller}
+              >
+                Message Seller
+              </Button>
             </Box>
+          ) : (
+            !biddingEnded && (
+              <Box sx={{ mb: 2 }}>
+                {error && (
+                  <Typography color="error" variant="caption" sx={{ mb: 1, display: 'block' }}>
+                    {error}
+                  </Typography>
+                )}
+
+                {isApproved ? (
+                  <>
+                    <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+                      Your approved bid limit: €{amountAllowed?.toLocaleString()}
+                    </Typography>
+                    <TextField
+                      color='text.primary'
+                      size="small"
+                      fullWidth
+                      label="Enter Bid"
+                      value={bid}
+                      onChange={(event) => {
+                        setBid(event.target.value);
+                      }}
+                      sx={{ mb: 1 }}
+                    />
+                    <Button
+                      fullWidth
+                      variant="contained"
+                      size="small"
+                      onClick={submitBid}
+                      disabled={!bid}
+                      sx={{ 
+                        bgcolor: '#123871',
+                        color: "white"
+                      }}
+                    >
+                      Submit Bid
+                    </Button>
+                  </>
+                ) : (
+                  <Box sx={{ textAlign: 'center' }}>
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        mb: 1,
+                        color: requestPending ? '#666' : '#123871'
+                      }}
+                    >
+                      {requestPending 
+                        ? ''
+                        : 'You need approval to place bids on this property'}
+                    </Typography>
+                    <Button
+                      fullWidth
+                      variant="contained"
+                      size="small"
+                      onClick={requestApproval}
+                      disabled={requestPending}
+                      sx={{ 
+                        color: "white",
+                        bgcolor: requestPending ? '#ccc' : '#123871',
+                        '&:hover': {
+                          bgcolor: requestPending ? '#ccc' : '#1a4c94'
+                        },
+                        '&.Mui-disabled': {
+                          bgcolor: '#ccc',
+                          color: '#666'
+                        }
+                      }}
+                    >
+                      {requestPending ? 'Approval Pending' : 'Request Approval'}
+                    </Button>
+                  </Box>
+                )}
+              </Box>
+            )
           )}
 
           <Divider sx={{ mb: 2 }} />

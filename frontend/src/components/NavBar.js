@@ -24,8 +24,9 @@ import OtherProfiles from "../pages/OtherProfiles";
 import HistoricSales from "../pages/HistoricSales";
 import SearchResults from "./SearchResults";
 import PropertyPage from "../pages/PropertyPage";
+import MessagesPage from "../pages/MessagesPage";
+import FavouritesPage from "../pages/FavouritesPage";
 import Approval from "../pages/Approval";
-import HouseIcon from '@mui/icons-material/House';
 import useUserData from '../utils/useUserData';
 import logo from '../images/logo.png';
 
@@ -76,6 +77,14 @@ export default function NavBar() {
     handleCloseUserMenu();
     window.location.href = '/approval';
   };
+  const handleMessageClick = () => {
+    handleCloseUserMenu();
+    window.location.href = '/messages';
+  };
+  const handleFavouritesClick = () => {
+    handleCloseUserMenu();
+    window.location.href = '/favourites';
+  };
 
   return (
     <Router>
@@ -88,7 +97,7 @@ export default function NavBar() {
               style={{ 
                 display: { xs: "none", md: "flex" },
                 marginRight: "8px",
-                height: "32px" // Adjust this value based on your needs
+                height: "32px" 
               }}
             />
             <Typography
@@ -174,7 +183,7 @@ export default function NavBar() {
               sx={{ 
                 flexGrow: 1, 
                 display: { xs: "none", md: "flex" }, 
-                justifyContent: "center"  // Center the buttons
+                justifyContent: "center"  
               }}
             >
               {pages.map((page) => (
@@ -238,6 +247,12 @@ export default function NavBar() {
                 <MenuItem onClick={handleApprovalClick}>
                   <Typography textAlign="center">Bidding Requests</Typography>
                 </MenuItem>
+                <MenuItem onClick={handleMessageClick}>
+                  <Typography textAlign="center">Messages</Typography>
+                </MenuItem>
+                <MenuItem onClick={handleFavouritesClick}>
+                  <Typography textAlign="center">My Favourites</Typography>
+                </MenuItem>
               </Menu>
             </Box>
           </Toolbar>
@@ -252,6 +267,9 @@ export default function NavBar() {
         <Route path="/search-results" element={<SearchResults />} />
         <Route path="/property/:id" element={<PropertyPage />} /> 
         <Route path="/approval" element={<Approval />} />
+        <Route path="/messages" element={<MessagesPage />} />
+        <Route path="/favourites" element={< FavouritesPage/>} />
+
       </Routes>
     </Router>
   );

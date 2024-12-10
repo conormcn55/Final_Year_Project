@@ -1,11 +1,17 @@
-import SearchBar from '../components/SearchBar';
+import SearchBar from '../utils/SearchBar';
 import RecentlyListed from '../components/cards/RecentlyListed'
+import EndingSoon from '../components/cards/EndingSoon'
 const Home = () => {
     return ( 
         <div>
 
-       <SearchBar/>
+<SearchBar 
+        soldStatus="false" 
+        title="Find Your New Property" 
+      />
        <RecentlyListed/>
+       <EndingSoon/>
+
        </div>
      );
 }

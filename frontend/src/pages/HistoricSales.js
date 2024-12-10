@@ -1,7 +1,11 @@
+import SearchBar from '../utils/SearchBar';
 const HistoricSales = () => {
-    return ( 
-        <div>Historic Sales Page</div>
-     );
+    return (
+        <SearchBar
+            soldStatus="true"
+            title="Search Sold Properties"
+        />
+    );
 }
- 
+
 export default HistoricSales;

@@ -42,7 +42,7 @@ export default function ListingForum() {
         bathrooms: '',
         sqdMeters: '',
         propertyType: '',
-        listingType: 'sale',
+        listingType: '',
         description: ''
     });
 
@@ -131,7 +131,7 @@ export default function ListingForum() {
                     bathrooms: '',
                     sqdMeters: '',
                     propertyType: '',
-                    listingType: 'sale',
+                    listingType: '',
                     description: ''
                 });
             }
@@ -358,6 +358,22 @@ export default function ListingForum() {
                                         ))}
                                     </TextField>
                                 </Grid>
+                                <Grid item xs={12} md={6}>
+                <TextField
+                    required
+                    select
+                    name="listingType"
+                    label="Listing Type"
+                    variant="outlined"
+                    fullWidth
+                    value={propertyData.listingType}
+                    onChange={handleForum}
+                    sx={TextFieldSx}
+                >
+                    <MenuItem value="sale">For Sale</MenuItem>
+                    <MenuItem value="rental">For Rent</MenuItem>
+                </TextField>
+            </Grid>
                                 <Grid item xs={12} md={6}>
                                     <TextField 
                                         required 

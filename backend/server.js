@@ -7,7 +7,7 @@ const MongoStore = require('connect-mongo');
 const routes = require('./api/routes');
 const path = require('path');
 require('dotenv').config();
-
+const Message = require('./models/messages'); 
 const app = express();
 const http = require("http");
 const {Server}= require("socket.io");
@@ -27,7 +27,33 @@ console.log(`User Connected to Socket:${socket.id}`);
 socket.on("join_room", (data) => {
   socket.join(data);
 });
+socket.on("send_message", async (data) => {
+  try {
+    console.log("Received message data:", data);
 
+    const newMessage = new Message({
+      sentBy: data.sentBy,
+      room: data.room,
+      message: data.message,
+      time: new Date()
+    });
+
+    const savedMessage = await newMessage.save();
+
+    console.log("Saved message:", savedMessage);
+
+    // Broadcast to specific room
+    io.to(data.room).emit("receive_message", savedMessage);
+    console.log("Emitted message to room:", data.room);
+
+  } catch (error) {
+    console.error("Error sending message:", error);
+    socket.emit("message_error", { 
+      room: data.room, 
+      error: "Failed to send message" 
+    });
+  }
+});
 socket.on("submit_bid", (data) => {
   socket.broadcast.emit("receive_bid", {
     bid: data.bid,

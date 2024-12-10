@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import useUserData from '../utils/useUserData';
 import { 
   Box, 
   Typography, 
@@ -24,7 +25,9 @@ import {
   ArrowBack,
   ChevronLeft,
   ChevronRight,
-  Person
+  Person,
+  FavoriteBorder,
+  Favorite
 } from '@mui/icons-material';
 
 const formatAddress = (address) => {
@@ -169,13 +172,25 @@ const PropertyInfo = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showFullDescription, setShowFullDescription] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
 
   useEffect(() => {
-    const fetchProperty = async () => {
+    const fetchPropertyAndFavorites = async () => {
       try {
         setLoading(true);
-        const { data } = await axios.get(`http://localhost:3001/api/property/${id}`);
-        setProperty(data);
+        const [propertyResponse, favoritesResponse] = await Promise.all([
+          axios.get(`http://localhost:3001/api/property/${id}`),
+          axios.get(`http://localhost:3001/api/favourites/3333`) // Assuming user ID is hardcoded for now
+        ]);
+        
+        setProperty(propertyResponse.data);
+        
+        // Check if the current property is in the user's favorites
+        const isFavourited = favoritesResponse.data.favourites.some(
+          fav => fav.property === id
+        );
+        
+        setIsFavorite(isFavourited);
         setError(null);
       } catch (err) {
         setError('Property not found');
@@ -185,8 +200,29 @@ const PropertyInfo = () => {
       }
     };
 
-    fetchProperty();
+    fetchPropertyAndFavorites();
   }, [id]);
+
+  const toggleFavorite = async () => {
+    try {
+      if (isFavorite) {
+        await axios.delete('http://localhost:3001/api/favourites/unfavourite', { 
+          data: { 
+            user: "3333", 
+            property: id 
+          } 
+        });
+      } else {
+        await axios.post('http://localhost:3001/api/favourites/', { 
+          user: "3333", 
+          property: id 
+        });
+      }
+      setIsFavorite(!isFavorite);
+    } catch (err) {
+      console.error('Error toggling favorite:', err);
+    }
+  };
 
   if (loading) return <Typography sx={{ p: 2 }}>Loading...</Typography>;
   if (error) return <Typography color="error" sx={{ p: 2 }}>{error}</Typography>;
@@ -196,31 +232,30 @@ const PropertyInfo = () => {
     address, 
     bathrooms, 
     bedrooms, 
-    currentBid, 
-    guidePrice, 
     images, 
     propertyType, 
-    saleDate, 
-    sold, 
+    saleDate,
     sqdMeters,
     description,
     listedBy
   } = property;
 
-  const { date, time } = formatDateTime(saleDate);
-
   return (
     <Box sx={{ py: 4 }}>
-      <IconButton 
-        onClick={() => navigate(-1)} 
-        sx={{ mb: 2 }}
-      >
-        <ArrowBack />
-      </IconButton>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <IconButton onClick={() => navigate(-1)}>
+          <ArrowBack />
+        </IconButton>
+
+        <IconButton onClick={toggleFavorite}>
+          {isFavorite ? <Favorite  /> : <FavoriteBorder />}
+        </IconButton>
+      </Box>
 
       <Typography variant="h4" component="h1" gutterBottom>
         {formatAddress(address)}
       </Typography>
+
 
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
         <Person color="action" />

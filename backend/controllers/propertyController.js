@@ -88,104 +88,101 @@ exports.toggleSoldStatus = async (req, res) => {
     }
 };
 
-exports.searchProperties = async (req, res) => {
-    try {
-        const location = (req.query.location || '').replace(/,/g, ' ').trim();
-        const maxPrice = req.query.price ? Number(req.query.price) : Number.MAX_SAFE_INTEGER;
-        const bedNum = req.query.bedNum ? Number(req.query.bedNum) : null;
-        const bathNum = req.query.bathNum ? Number(req.query.bathNum) : null;
-        const sort = req.query.sort || 'dateDesc';
-        const propertyType = req.query.propertyType || '';
-        const listingType = req.query.listingType || '';
+exports.searchProperties = async (req, res) => {     
+    try {         
+        const {
+            location = '',
+            guidePrice,
+            bedrooms,
+            bathrooms,
+            sort = 'dateDesc',
+            propertyType = '',
+            listingType = '',
+            sold 
+        } = req.query;          
 
-        const locationParts = location.split(/\s+/);
-        const town = locationParts[0]; 
-        const county = locationParts.slice(1).join(' '); 
-
-        let locationQuery = {};
-        if (location) {
-            locationQuery = {
-                $or: [
-                   
-                    { "address.addressLine1": { $regex: location, $options: 'i' } },
-                    { "address.addressLine2": { $regex: location, $options: 'i' } },
-                    { "address.addressLine3": { $regex: location, $options: 'i' } },
-                    {
-                        $and: [
-                            { "address.addressTown": { $regex: `^${town}$`, $options: 'i' } },
-                            { "address.addressCounty": { $regex: county, $options: 'i' } }
-                        ]
-                    },
-                    { "address.addressTown": { $regex: `^${town}$`, $options: 'i' } },
-                    { "address.addressTown": { $regex: location, $options: 'i' } },
-                    { "address.addressCounty": { $regex: location, $options: 'i' } }
-                ]
-            };
+        // Build base query with dynamic sold status
+        const query = {};
+        
+        if (sold === 'true') {
+            query.sold = true;
+        } else if (sold === 'false') {
+            query.sold = false;
         }
+        // If no soldStatus is provided, no filter will be applied to sold status
 
-        let query = {
-            $and: [
-                locationQuery,
-                { guidePrice: { $lte: maxPrice } }
-            ]
-        };
+// Location filtering
+if (location) {
+    const locationParts = location.split(',').map(part => part.trim());
 
+    // If only one part is provided
+    if (locationParts.length === 1) {
+        query.$or = [
+            { "address.addressTown": { $regex: `^${locationParts[0]}$`, $options: 'i' } },
+            { "address.addressCounty": { $regex: `^${locationParts[0]}$`, $options: 'i' } }
+        ];
+    } 
+    // If multiple parts are provided (e.g., "Maynooth, County Kildare")
+    else if (locationParts.length > 1) {
+        // Exact matching for town and county
+        query.$and = [
+            { "address.addressTown": { $regex: `^${locationParts[0]}$`, $options: 'i' } },
+            { "address.addressCounty": { $regex: `^${locationParts[1]}$`, $options: 'i' } }
+        ];
+    }
+}
+        // Price filter
+        if (guidePrice) {
+            query.guidePrice = { $lte: Number(guidePrice) };
+        }          
+
+        // Property type and listing type filters
         if (propertyType) {
-            query.$and.push({
-                propertyType: { $regex: propertyType, $options: 'i' }
-            });
-        }
+            query.propertyType = { $regex: `^${propertyType}$`, $options: 'i' };
+        }          
 
         if (listingType) {
-            query.$and.push({
-                listingType: { $regex: `^${listingType}$`, $options: 'i' }
-            });
-        }
+            query.listingType = { $regex: `^${listingType}$`, $options: 'i' };
+        }          
 
-        if (bedNum !== null) {
-            query.$and.push({ bedrooms: bedNum });
-        }
+        // Bedroom and bathroom filters
+        if (bedrooms) query.bedrooms = Number(bedrooms);
+        if (bathrooms) query.bathrooms = Number(bathrooms);          
 
-        if (bathNum !== null) {
-            query.$and.push({ bathrooms: bathNum });
-        }
+        const sortOptions = {
+            'priceLowHigh': { guidePrice: 1 },
+            'priceHighLow': { guidePrice: -1 },
+            'dateAsc': { createdAt: 1 },
+            'currentBidLowHigh': { 'currentBid.amount': 1 },
+            'currentBidHighLow': { 'currentBid.amount': -1 },
+            'dateDesc': { createdAt: -1 },
+            'saleDateNearest': { saleDate: 1 },
+            'saleDateFurthest': { saleDate: -1 }
+        };          
 
-        let sortOptions = {};
-        switch (sort) {
-            case 'priceLowHigh':
-                sortOptions = { guidePrice: 1 };
-                break;
-            case 'priceHighLow':
-                sortOptions = { guidePrice: -1 };
-                break;
-            case 'dateAsc':
-                sortOptions = { createdAt: 1 };
-                break;
-            case 'dateDesc':
-            default:
-                sortOptions = { createdAt: -1 };
-                break;
-        }
+        // If no query parameters are provided, return all properties
+        if (Object.keys(req.query).length === 0) {
+            const allProperties = await Property.find()
+                .sort({ createdAt: -1 });
+            return res.json(allProperties);
+        }          
 
-        const properties = await Property.find(query).sort(sortOptions);
+        // Fetch properties with the specified filters
+        const properties = await Property.find(query)
+            .sort(sortOptions[sort] || { createdAt: -1 });          
 
+        // Handle no properties found
         if (!properties.length) {
-            return res.status(404).json({ 
-                message: 'No properties found matching the search criteria',
-                searchTerms: {
-                    location,
-                    town,
-                    county
-                },
-                query: query
+            return res.status(404).json({
+                message: 'No properties found matching the search criteria'
             });
-        }
+        }          
 
         res.json(properties);
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Error retrieving properties' });
-    }
+    } 
 };
 exports.getProperty = async (req, res) => {
     try {
@@ -269,30 +266,66 @@ exports.updateCurrentBid = async (req, res) => {
 exports.getSaleSoon = async (req, res) => {
     try {
         const currentTime = new Date();
+
+        // Step 1: Fetch properties
         const properties = await Property.find({
             sold: false,
-            saleDate: { $gt: currentTime }
-        })
-        .sort({ saleDate: 1 }) 
-        .limit(10); 
-        const propertiesWithTimeRemaining = properties.map(property => ({
-            ...property.toObject(),
-            timeRemaining: property.saleDate - currentTime
-        }))
-        propertiesWithTimeRemaining.sort((a, b) => a.timeRemaining - b.timeRemaining);
+            saleDate: { $exists: true}
+        }).sort({ saleDate: 1 }).limit(50); // Adjust limit if needed
 
-        if (!propertiesWithTimeRemaining.length) {
-            return res.status(404).json({ 
-                message: 'No properties ending soon' 
+        console.log("Fetched Properties:", properties.length);
+
+        // Step 2: Add timeRemaining
+        const propertiesWithTimeRemaining = properties.map(property => {
+            const saleDate = new Date(property.saleDate);
+            const timeRemaining = saleDate.getTime() - currentTime.getTime();
+
+            console.log("Property ID:", property._id, "SaleDate:", property.saleDate, "TimeRemaining:", timeRemaining);
+
+            if (timeRemaining <= 0) return null; // Exclude expired properties
+
+            // Format time remaining
+            const days = Math.floor(timeRemaining / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((timeRemaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((timeRemaining % (1000 * 60 * 60)) / (1000 * 60));
+
+            const timeRemainingFormatted =
+                days > 0 ? `${days}d ${hours}h` :
+                hours > 0 ? `${hours}h ${minutes}m` :
+                `${minutes}m`;
+
+            return {
+                ...property.toObject(),
+                timeRemaining,
+                timeRemainingFormatted
+            };
+        }).filter(Boolean); // Exclude null values
+
+        console.log("Valid Properties:", propertiesWithTimeRemaining.length);
+
+        // Step 3: Sort and limit to 10
+        const sortedProperties = propertiesWithTimeRemaining
+            .sort((a, b) => a.timeRemaining - b.timeRemaining)
+            .slice(0, 10);
+
+        if (!sortedProperties.length) {
+            return res.status(404).json({
+                success: false,
+                message: "No upcoming property sales found"
             });
         }
 
-        res.json(propertiesWithTimeRemaining);
+        res.json({
+            success: true,
+            count: sortedProperties.length,
+            data: sortedProperties
+        });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ 
-            message: 'Error retrieving properties ending soon',
-            error: error.message 
+        console.error("getSaleSoon error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Error retrieving upcoming property sales",
+            error: error.message
         });
     }
 };
@@ -300,8 +333,8 @@ exports.getSaleSoon = async (req, res) => {
 exports.getRecentlyListed = async (req, res) => {
     try {
         const recentProperties = await Property.find({ sold: false })
-            .sort({ createdAt: -1 }) // Sort by most recently created
-            .limit(10); // Limit to 10 most recent properties
+            .sort({ createdAt: -1 }) 
+            .limit(10); 
 
         if (!recentProperties.length) {
             return res.status(404).json({ 
@@ -318,3 +351,19 @@ exports.getRecentlyListed = async (req, res) => {
         });
     }
 };
+
+exports.getPropertiesByIds = async (req, res) => {
+    try {
+      const { ids } = req.body;
+      if (!ids || !ids.length) {
+        return res.status(400).json({ message: 'No property IDs provided' });
+      }
+  
+      const properties = await Property.find({ _id: { $in: ids } });
+      res.status(200).json({ properties });
+    } catch (error) {
+      console.error('Error fetching properties by IDs:', error);
+      res.status(500).json({ message: 'Error fetching properties' });
+    }
+  };
+  
