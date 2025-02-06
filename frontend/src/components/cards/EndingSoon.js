@@ -21,10 +21,8 @@ const EndingSoon = () => {
       try {
         const response = await axios.get('http://localhost:3001/api/property/endingsoon');
         console.log('API Response:', response.data);
-        
-        // Check if response.data exists and contains the data array
+
         if (response.data && response.data.data) {
-          // Filter valid properties from the data array
           const validProperties = response.data.data.filter(prop => prop && prop._id);
           setProperties(validProperties);
         } else {
@@ -37,23 +35,28 @@ const EndingSoon = () => {
         setLoading(false);
       }
     };
-  
+
     fetchEndingSoon();
   }, []);
 
-  const handleLocationSearch = (location) => {
+  const handleLocationSearch = (location, e) => {
+    e.stopPropagation();
     navigate(`/search-results?location=${location}`);
+  };
+
+  const handleCardClick = (propertyId) => {
+    navigate(`/property/${propertyId}`);
   };
 
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" gap={2} flexWrap="wrap">
+      <Box display="flex" justifyContent="center" gap={2} flexWrap="wrap" maxWidth={600} mx="auto">
         {[1, 2, 3].map((item) => (
           <Skeleton
             key={item}
             variant="rectangular"
-            width={345}
-            height={400}
+            width={600}
+            height={520}
           />
         ))}
       </Box>
@@ -62,7 +65,7 @@ const EndingSoon = () => {
 
   if (error) {
     return (
-      <Alert severity="error" sx={{ m: 2 }}>
+      <Alert severity="error" sx={{ m: 2, maxWidth: 600, mx: "auto" }}>
         {error}
       </Alert>
     );
@@ -85,7 +88,7 @@ const EndingSoon = () => {
   }
 
   return (
-    <Box margin={2}>
+    <Box margin={2} maxWidth={800} mx="auto">
       <Typography
         color='secondary'
         variant="h4"
@@ -103,8 +106,10 @@ const EndingSoon = () => {
         indicators={true}
         navButtonsAlwaysVisible={true}
         autoPlay={false}
-        sx={{
-          minHeight: '500px'
+        sx={{ 
+          height: 600,
+          maxWidth: 600,
+          mx: 'auto'
         }}
         navButtonsProps={{
           style: {
@@ -118,16 +123,18 @@ const EndingSoon = () => {
         {properties.map((property) => (
           <Box
             key={property._id}
-            display="flex"
-            justifyContent="center"
-            sx={{ 
+            sx={{
+              width: 600,
+              height: 520,
               py: 2,
-              px: 1
+              px: 1,
+              cursor: 'pointer'
             }}
+            onClick={() => handleCardClick(property._id)}
           >
             <PropertyCard
               property={property}
-              onLocationClick={handleLocationSearch}
+              onLocationClick={(location, e) => handleLocationSearch(location, e)}
             />
           </Box>
         ))}

@@ -111,7 +111,6 @@ const PropertyCard = ({
     currentBid,
     guidePrice,
     images,
-    listingType,
     propertyType,
     saleDate,
     sold,
@@ -122,8 +121,8 @@ const PropertyCard = ({
 
   return (
     <Card sx={{ 
-      maxWidth: '100%',
-      height: '100%',
+      width: '100%',
+      minHeight: 520,
       display: 'flex',
       flexDirection: 'column',
       transition: 'transform 0.2s, box-shadow 0.2s',
@@ -140,85 +139,113 @@ const PropertyCard = ({
         sx={{ objectFit: 'cover' }}
       />
       <CardHeader
-        title={formatAddress(address)}
-        subheader={
-          <Box sx={{ mt: 1 }}>
-            <Typography variant="body2" color="text.primary">
-              {propertyType} - {listingType.charAt(0).toUpperCase() + listingType.slice(1)}
-            </Typography>
-          </Box>
+        title={
+          <Typography variant="h6" sx={{ 
+            minHeight: 48, 
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+            lineHeight: 1.3
+          }}>
+            {formatAddress(address)}
+          </Typography>
         }
         sx={{ pb: 1 }}
       />
       
-      <CardContent sx={{ flexGrow: 1, pt: 0, pb: 1 }}>
-        <Box sx={{ mb: 2 }}>
-          <Typography variant="h6" color="text.primary" gutterBottom>
-           Current Bid: €{currentBid.amount?.toLocaleString()}
-          </Typography>
-          
-            <Typography variant="body2" color="text.primary">
-            Guide Price: €{guidePrice?.toLocaleString()} 
+      <CardContent sx={{ 
+        flexGrow: 1, 
+        pt: 0,
+        pb: '8px !important',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between'
+      }}>
+        <Box>
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="h6" color="text.primary" gutterBottom>
+             Current Bid: €{currentBid.amount?.toLocaleString()}
             </Typography>
-          {sold && (
-            <Chip 
-              label="SOLD" 
-              color="error" 
-              sx={{ mt: 1 }} 
-            />
-          )}
+            
+            <Typography variant="body2" color="text.primary">
+              Guide Price: €{guidePrice?.toLocaleString()} 
+            </Typography>
+            {sold && (
+              <Chip 
+                label="SOLD" 
+                color="error" 
+                sx={{ mt: 1 }} 
+              />
+            )}
+          </Box>
+
+          <Grid container spacing={2}>
+            <Grid item xs={6}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <BedOutlined />
+                <Typography>{bedrooms} beds</Typography>
+              </Box>
+            </Grid>
+            <Grid item xs={6}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <BathtubOutlined />
+                <Typography>{bathrooms} baths</Typography>
+              </Box>
+            </Grid>
+            <Grid item xs={6}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <SquareFoot />
+                <Typography>{sqdMeters}m²</Typography>
+              </Box>
+            </Grid>
+            <Grid item xs={6}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <HomeOutlined />
+                <Typography 
+                  sx={{ 
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  {propertyType}
+                </Typography>
+              </Box>
+            </Grid>
+          </Grid>
         </Box>
 
-        <Grid container spacing={2} sx={{ mb: 2 }}>
-          <Grid item xs={6}>
+        <Box sx={{ mt: 'auto' }}>
+          <Divider />
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: 1, 
+            justifyContent: 'space-between',
+            mt: 1
+          }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <BedOutlined />
-              <Typography>{bedrooms} beds</Typography>
+              <CalendarToday color="text.primary" />
+              <Box>
+                <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+                  {date}
+                </Typography>
+                <Typography variant="body2" color="text.primary">
+                  {time}
+                </Typography>
+              </Box>
             </Box>
-          </Grid>
-          <Grid item xs={6}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <BathtubOutlined />
-              <Typography>{bathrooms} baths</Typography>
-            </Box>
-          </Grid>
-          <Grid item xs={6}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <SquareFoot />
-              <Typography>{sqdMeters}m²</Typography>
-            </Box>
-          </Grid>
-          <Grid item xs={6}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <HomeOutlined />
-              <Typography>{propertyType}</Typography>
-            </Box>
-          </Grid>
-        </Grid>
-
-        <Divider sx={{ my: 2 }} />
-        
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, justifyContent: 'space-between' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <CalendarToday color="text.primary" />
-            <Box>
-              <Typography variant="body1" sx={{ fontWeight: 'medium' }}>
-                {date}
-              </Typography>
-              <Typography variant="body2" color="text.primary">
-                {time}
-              </Typography>
-            </Box>
+            {enableFavorite && (
+              <IconButton 
+                size="small" 
+                aria-label="add to favorites" 
+                onClick={toggleFavorite}
+              >
+                {isFavorite ? <Favorite /> : <FavoriteBorder />}
+              </IconButton>
+            )}
           </Box>
-          {enableFavorite && (
-            <IconButton 
-              size="small" 
-              aria-label="add to favorites" 
-              onClick={toggleFavorite}
-            >
-              {isFavorite ? <Favorite /> : <FavoriteBorder />}
-            </IconButton>
-          )}
         </Box>
       </CardContent>
     </Card>

@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { useParams ,useNavigate} from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Box, Typography, TextField, Button, Card, CardContent, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Collapse, IconButton, Divider } from '@mui/material';
 import { CalendarToday, ExpandMore, ExpandLess } from '@mui/icons-material';
 import DOMPurify from 'dompurify';
 import io from 'socket.io-client';
 import useUserData from '../utils/useUserData';
-
+import BidBot from './BidBot';
 const socket = io.connect("http://localhost:3002");
 
 const formatDateTime = (dateString) => {
@@ -44,7 +44,11 @@ export default function Bid() {
   const { _id: userId, name: userName } = useUserData();
   const [requestPending, setRequestPending] = useState(false);
   const [amountAllowed, setAmountAllowed] = useState(null);
-  const [biddingEnded, setBiddingEnded] = useState(false); 
+  const [biddingEnded, setBiddingEnded] = useState(false);
+
+  const sortBidsByTime = (bidsArray) => {
+    return [...bidsArray].sort((a, b) => new Date(b.time) - new Date(a.time));
+  };
 
   useEffect(() => {
     const fetchPropertyInfo = async () => {
@@ -70,11 +74,13 @@ export default function Bid() {
           setIsApproved(approvalResponse.data.approved);
           setRequestPending(approvalResponse.data.exists && !approvalResponse.data.approved);
           setAmountAllowed(approvalResponse.data.amountAllowed);
+  
           const bidsResponse = await axios.get(`http://localhost:3001/api/bids/propertyBid/${id}`);
-          setBids(bidsResponse.data.map(bid => ({
+          const sanitizedBids = bidsResponse.data.map(bid => ({
             ...bid,
             userName: DOMPurify.sanitize(bid.userName)
-          })));
+          }));
+          setBids(sortBidsByTime(sanitizedBids));
         } catch (err) {
           console.error('Error fetching property info:', err);
         }
@@ -191,10 +197,11 @@ export default function Bid() {
       setError("");
 
       const bidsResponse = await axios.get(`http://localhost:3001/api/bids/propertyBid/${id}`);
-      setBids(bidsResponse.data.map(bid => ({
+      const sanitizedBids = bidsResponse.data.map(bid => ({
         ...bid,
         userName: DOMPurify.sanitize(bid.userName)
-      })));
+      }));
+      setBids(sortBidsByTime(sanitizedBids));
 
       setAnimateUpdate(true);
       setTimeout(() => setAnimateUpdate(false), 1000);
@@ -251,6 +258,7 @@ export default function Bid() {
       setWinningBid(recentBid.userId);
     }
   }, [bids]);
+
   const handleMessageSeller = async () => {
     try {
       const roomResponse = await axios.post('http://localhost:3001/api/room/new', {
@@ -258,14 +266,12 @@ export default function Bid() {
         owner: approver
       });
   
-      // Navigate to messages page if room is created or already exists
       if (roomResponse.data && (roomResponse.data._id || roomResponse.data.message === "Room already exists")) {
         navigate('/messages');
       }
     } catch (error) {
       console.error('Error creating room:', error);
       
-      // Check if the error response indicates an existing room
       if (error.response && error.response.data.message === "Room already exists") {
         navigate('/messages');
       } else {
@@ -273,6 +279,7 @@ export default function Bid() {
       }
     }
   };
+
   return (
     <Box>
       <Card sx={{ position: 'sticky', top: '1rem' }}>
@@ -306,15 +313,15 @@ export default function Bid() {
               {timeLeft}
             </Typography>
           </Box>
-
+  
           <Typography variant="body1" sx={{ fontWeight: 'bold', mb: 1 }}>
             Guide Price: €{guidePrice?.toLocaleString()}
           </Typography>
-
+  
           <Typography variant="body1" sx={{ fontWeight: 'bold', mb: 1 }}>
             Current Bid: €{latestBid?.bid?.toLocaleString() || "N/A"}
           </Typography>
-
+  
           {biddingEnded && winningBid === userId ? (
             <Box sx={{ 
               bgcolor: '#4CAF50', 
@@ -353,7 +360,7 @@ export default function Bid() {
                     {error}
                   </Typography>
                 )}
-
+  
                 {isApproved ? (
                   <>
                     <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
@@ -383,6 +390,36 @@ export default function Bid() {
                     >
                       Submit Bid
                     </Button>
+                    <BidBot 
+                      propertyId={id} 
+                      userId={userId} 
+                      userName={userName} 
+                      currentBid={latestBid?.bid} 
+                      amountAllowed={amountAllowed} 
+                      lastBidderId={winningBid}
+                      onBidSubmit={(newBidAmount) => {
+                        setLatestBid({ bid: newBidAmount }); 
+                        setError('');
+                        
+                        const refreshBids = async () => {
+                          try {
+                            const bidsResponse = await axios.get(`http://localhost:3001/api/bids/propertyBid/${id}`);
+                            const sanitizedBids = bidsResponse.data.map(bid => ({
+                              ...bid,
+                              userName: DOMPurify.sanitize(bid.userName)
+                            }));
+                            setBids(sortBidsByTime(sanitizedBids));
+                          } catch (err) {
+                            console.error('Error refreshing bids:', err);
+                          }
+                        };
+                        
+                        refreshBids();
+                      }} 
+                      onError={(errorMessage) => { 
+                        setError(errorMessage); 
+                      }} 
+                    />
                   </>
                 ) : (
                   <Box sx={{ textAlign: 'center' }}>
@@ -422,9 +459,8 @@ export default function Bid() {
               </Box>
             )
           )}
-
+  
           <Divider sx={{ mb: 2 }} />
-
           <Typography 
             variant="h6" 
             sx={{ 
@@ -441,18 +477,71 @@ export default function Bid() {
           </Typography>
           <Collapse in={showBids}>
             {bids.length ? (
-              <TableContainer component={Paper}>
-                <Table size="small" aria-label="bid history">
+              <TableContainer 
+                component={Paper}
+                sx={{
+                  maxHeight: '300px',
+                  overflowY: 'auto',
+                  '&::-webkit-scrollbar': {
+                    width: '8px',
+                  },
+                  '&::-webkit-scrollbar-track': {
+                    backgroundColor: '#f1f1f1',
+                  },
+                  '&::-webkit-scrollbar-thumb': {
+                    backgroundColor: '#888',
+                    borderRadius: '4px',
+                    '&:hover': {
+                      backgroundColor: '#555',
+                    },
+                  },
+                }}
+              >
+                <Table 
+                  size="small" 
+                  aria-label="bid history"
+                  stickyHeader
+                >
                   <TableHead>
                     <TableRow>
-                      <TableCell>User</TableCell>
-                      <TableCell align="right">Amount (€)</TableCell>
-                      <TableCell align="right">Time</TableCell>
+                      <TableCell 
+                        sx={{ 
+                          bgcolor: '#f5f5f5',
+                          fontWeight: 'bold'
+                        }}
+                      >
+                        User
+                      </TableCell>
+                      <TableCell 
+                        align="right"
+                        sx={{ 
+                          bgcolor: '#f5f5f5',
+                          fontWeight: 'bold'
+                        }}
+                      >
+                        Amount (€)
+                      </TableCell>
+                      <TableCell 
+                        align="right"
+                        sx={{ 
+                          bgcolor: '#f5f5f5',
+                          fontWeight: 'bold'
+                        }}
+                      >
+                        Time
+                      </TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {bids.map((bid) => (
-                      <TableRow key={bid._id}>
+                      <TableRow 
+                        key={bid._id}
+                        sx={{
+                          '&:nth-of-type(odd)': {
+                            backgroundColor: '#fafafa',
+                          },
+                        }}
+                      >
                         <TableCell>{bid.userName}</TableCell>
                         <TableCell align="right">{bid.amount?.toLocaleString()}</TableCell>
                         <TableCell align="right">{new Date(bid.time).toLocaleString()}</TableCell>

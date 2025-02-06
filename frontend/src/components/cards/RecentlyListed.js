@@ -1,14 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { 
-  Box, 
-  Typography, 
+import {
+  Box,
+  Typography,
   Skeleton,
 } from '@mui/material';
-
 import Carousel from 'react-material-ui-carousel';
-import PropertyCard from '../../utils/PropertyCard'
+import PropertyCard from '../../utils/PropertyCard';
 
 const RecentlyListed = () => {
   const navigate = useNavigate();
@@ -32,19 +31,24 @@ const RecentlyListed = () => {
     fetchRecentlyListed();
   }, []);
 
-  const handleLocationSearch = (location) => {
+  const handleLocationSearch = (location, e) => {
+    e.stopPropagation();
     navigate(`/search-results?location=${location}`);
+  };
+
+  const handleCardClick = (propertyId) => {
+    navigate(`/property/${propertyId}`);
   };
 
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" gap={2} flexWrap="wrap">
+      <Box display="flex" justifyContent="center" gap={2} flexWrap="wrap" maxWidth={600} mx="auto">
         {[1, 2, 3].map((item) => (
-          <Skeleton 
-            key={item} 
-            variant="rectangular" 
-            width={345} 
-            height={400} 
+          <Skeleton
+            key={item}
+            variant="rectangular"
+            width={600}
+            height={520}
           />
         ))}
       </Box>
@@ -53,11 +57,11 @@ const RecentlyListed = () => {
 
   if (error) {
     return (
-      <Box 
-        display="flex" 
-        justifyContent="center" 
-        alignItems="center" 
-        height="100%" 
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        height="100%"
         color="error.main"
       >
         <Typography>Failed to load properties: {error}</Typography>
@@ -67,10 +71,10 @@ const RecentlyListed = () => {
 
   if (!properties.length) {
     return (
-      <Box 
-        display="flex" 
-        justifyContent="center" 
-        alignItems="center" 
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
         height="100%"
       >
         <Typography variant="h6">
@@ -81,23 +85,29 @@ const RecentlyListed = () => {
   }
 
   return (
-    <Box margin={2}>
-      <Typography 
-        variant="h4" 
+    <Box margin={2} maxWidth={800} mx="auto">
+      <Typography
+        variant="h4"
         color='secondary'
-        gutterBottom 
-        sx={{ 
-          textAlign: 'center', 
+        gutterBottom
+        sx={{
+          textAlign: 'center',
           fontWeight: 'bold',
-          mb: 4 
+          mb: 4
         }}
       >
         Recently Listed Properties
       </Typography>
       <Carousel
         animation="slide"
-        indicators={false}
+        indicators={true}
         navButtonsAlwaysVisible={true}
+        autoPlay={false}
+        sx={{ 
+          height: 600,
+          maxWidth: 600,
+          mx: 'auto'
+        }}
         navButtonsProps={{
           style: {
             backgroundColor: 'rgba(255,255,255,0.8)',
@@ -108,14 +118,20 @@ const RecentlyListed = () => {
         }}
       >
         {properties.map((property) => (
-          <Box 
-            key={property._id} 
-            display="flex" 
-            justifyContent="center"
+          <Box
+            key={property._id}
+            sx={{
+              width: 600,
+              height: 520,
+              py: 2,
+              px: 1,
+              cursor: 'pointer'
+            }}
+            onClick={() => handleCardClick(property._id)}
           >
-            <PropertyCard 
-              property={property} 
-              onLocationClick={handleLocationSearch}
+            <PropertyCard
+              property={property}
+              onLocationClick={(location, e) => handleLocationSearch(location, e)}
             />
           </Box>
         ))}

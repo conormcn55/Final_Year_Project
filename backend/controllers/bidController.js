@@ -11,8 +11,17 @@ exports.getAllBids = async (req, res) => {
 };
 
 exports.createBid = async (req, res) => {
-    const { userName, userId, propertyId, amount,time } = req.body;
+    const { userName, userId, propertyId, amount, time } = req.body;
+  
     try {
+        // Check if a bid with the same amount exists for this property
+        const existingBid = await Bid.findOne({ propertyId, amount });
+
+        if (existingBid) {
+            return res.status(400).json({ message: 'A bid with this amount already exists for this property' });
+        }
+
+        // If no existing bid, create the new bid
         const newBid = new Bid({
             userName,
             userId,

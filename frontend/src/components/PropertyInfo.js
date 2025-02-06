@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate , Link} from 'react-router-dom';
 import axios from 'axios';
 import useUserData from '../utils/useUserData';
 import { 
@@ -41,22 +41,6 @@ const formatAddress = (address) => {
   ].filter(part => part && part.length > 0);
   
   return parts.join(', ');
-};
-
-const formatDateTime = (dateString) => {
-  const date = new Date(dateString);
-  return {
-    date: date.toLocaleDateString('en-IE', { 
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    }),
-    time: date.toLocaleTimeString('en-IE', {
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  };
 };
 
 const ImageCarousel = ({ images }) => {
@@ -168,6 +152,7 @@ const ImageCarousel = ({ images }) => {
 const PropertyInfo = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { _id: userId } = useUserData();
   const [property, setProperty] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -180,7 +165,7 @@ const PropertyInfo = () => {
         setLoading(true);
         const [propertyResponse, favoritesResponse] = await Promise.all([
           axios.get(`http://localhost:3001/api/property/${id}`),
-          axios.get(`http://localhost:3001/api/favourites/3333`) // Assuming user ID is hardcoded for now
+          axios.get(`http://localhost:3001/api/favourites/${userId}`)
         ]);
         
         setProperty(propertyResponse.data);
@@ -200,21 +185,25 @@ const PropertyInfo = () => {
       }
     };
 
-    fetchPropertyAndFavorites();
-  }, [id]);
+    if (userId) {
+      fetchPropertyAndFavorites();
+    }
+  }, [id, userId]);
 
   const toggleFavorite = async () => {
+    if (!userId) return;
+    
     try {
       if (isFavorite) {
         await axios.delete('http://localhost:3001/api/favourites/unfavourite', { 
           data: { 
-            user: "3333", 
+            user: userId, 
             property: id 
           } 
         });
       } else {
         await axios.post('http://localhost:3001/api/favourites/', { 
-          user: "3333", 
+          user: userId, 
           property: id 
         });
       }
@@ -241,28 +230,43 @@ const PropertyInfo = () => {
   } = property;
 
   return (
+    
     <Box sx={{ py: 4 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <IconButton onClick={() => navigate(-1)}>
           <ArrowBack />
         </IconButton>
 
-        <IconButton onClick={toggleFavorite}>
-          {isFavorite ? <Favorite  /> : <FavoriteBorder />}
-        </IconButton>
+        {userId && (
+          <IconButton onClick={toggleFavorite}>
+            {isFavorite ? <Favorite /> : <FavoriteBorder />}
+          </IconButton>
+        )}
       </Box>
 
       <Typography variant="h4" component="h1" gutterBottom>
         {formatAddress(address)}
       </Typography>
 
-
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
         <Person color="action" />
         <Typography variant="subtitle1" color="text.secondary">
-          Listed by: {listedBy.listerName}
+          Listed by:{' '}
+          <Link 
+            to={`/profile/${listedBy.listerID}`}
+            style={{ 
+              color: 'inherit',
+              textDecoration: 'none',
+              '&:hover': {
+                textDecoration: 'underline'
+              }
+            }}
+          >
+            {listedBy.listerName}
+          </Link>
         </Typography>
       </Box>
+
 
       <Paper elevation={2}>
         <ImageCarousel images={images || []} />
@@ -308,7 +312,7 @@ const PropertyInfo = () => {
         
         <Button 
           onClick={() => setShowFullDescription(!showFullDescription)}
-          sx={{ mt: 2 ,color:"text.primary"}}
+          sx={{ mt: 2, color: "text.primary" }}
         >
           {showFullDescription ? 'Show less' : 'Show more'}
         </Button>

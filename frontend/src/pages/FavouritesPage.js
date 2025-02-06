@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { 
+import {
   Box,
   Typography,
   Grid,
@@ -24,7 +24,7 @@ const FavouritesPage = () => {
         setLoading(true);
         const { data } = await axios.get(`http://localhost:3001/api/favourites/${userId}`);
         const propertyIds = data.favourites.map(fav => fav.property);
-        
+
         if (propertyIds.length) {
           const response = await axios.post('http://localhost:3001/api/property/ids', { ids: propertyIds });
           setProperties(response.data.properties);
@@ -43,12 +43,28 @@ const FavouritesPage = () => {
     }
   }, [userId]);
 
-  if (loading) return <CircularProgress />;
+  const handleCardClick = (propertyId) => {
+    navigate(`/property/${propertyId}`);
+  };
 
-  if (error) return <Typography color="error">{error}</Typography>;
+  if (loading) return (
+    <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+      <CircularProgress />
+    </Box>
+  );
+
+  if (error) return (
+    <Box p={3}>
+      <Typography color="error">{error}</Typography>
+    </Box>
+  );
 
   if (!properties.length) {
-    return <Typography variant="h6">You have no favorite properties yet.</Typography>;
+    return (
+      <Box p={3}>
+        <Typography variant="h6">You have no favorite properties yet.</Typography>
+      </Box>
+    );
   }
 
   return (
@@ -59,7 +75,18 @@ const FavouritesPage = () => {
       <Grid container spacing={3}>
         {properties.map((property) => (
           <Grid item xs={12} sm={6} md={4} key={property._id}>
-            <PropertyCard property={property} onClick={() => navigate(`/property/${property._id}`)} />
+            <Box
+              sx={{
+                cursor: 'pointer',
+                '&:hover': {
+                  transform: 'scale(1.02)',
+                  transition: 'transform 0.2s ease-in-out'
+                }
+              }}
+              onClick={() => handleCardClick(property._id)}
+            >
+              <PropertyCard property={property} />
+            </Box>
           </Grid>
         ))}
       </Grid>

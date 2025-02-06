@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Box, TextField, Autocomplete, InputAdornment, MenuItem, Typography,
   Popover, IconButton, Stack, Paper, Button, Grid, Container, 
-  ToggleButtonGroup, ToggleButton
+  ToggleButtonGroup, ToggleButton,useTheme
 } from '@mui/material';
 import { LocationOn as LocationOnIcon, FilterAlt as FilterAltIcon } from '@mui/icons-material';
 import { debounce } from '@mui/material/utils';
@@ -13,6 +13,7 @@ import stockPhoto from '../images/stockPhoto.jpg';
 const GOOGLE_MAPS_API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
 
 const SearchBar = ({ soldStatus = 'false', title }) => {
+  const theme = useTheme();
   const navigate = useNavigate();
   const [value, setValue] = useState(null);
   const [inputValue, setInputValue] = useState('');
@@ -145,6 +146,7 @@ const SearchBar = ({ soldStatus = 'false', title }) => {
   const handlePopoverClick = (event) => setAnchorEl(event.currentTarget);
   const handlePopoverClose = () => setAnchorEl(null);
 
+
   return (
     <Box
       sx={{
@@ -152,7 +154,7 @@ const SearchBar = ({ soldStatus = 'false', title }) => {
         width: '100%',
         height: '600px',
         display: 'flex',
-        background: 'white',
+        bgcolor: 'background.default',
         overflow: 'hidden',
       }}
     >
@@ -182,25 +184,44 @@ const SearchBar = ({ soldStatus = 'false', title }) => {
               backgroundImage: `url(${stockPhoto})`,
               backgroundSize: 'cover',
               backgroundPosition: 'left center',
+              '&::after': {
+                content: '""',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: theme.palette.mode === 'dark' 
+                  ? 'rgba(0, 0, 0, 0.4)'
+                  : 'rgba(0, 0, 0, 0.2)',
+              }
             }}
           />
-          <Box
-            sx={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: `linear-gradient(
-                90deg,
-                rgba(0,0,0,0.4) 0%,
-                rgba(0,0,0,0.2) 40%,
-                rgba(255,255,255,0.3) 80%,
-                rgba(255,255,255,1) 100%
-              )`,
-              zIndex: 1,
-            }}
-          />
+<Box
+  sx={{
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: theme.palette.mode === 'dark'
+      ? `linear-gradient(
+          90deg,
+          rgba(0,0,0,0.4) 0%,
+          rgba(0,0,0,0.2) 40%,
+          rgba(18,18,18,0.3) 80%,
+          ${theme.palette.background.default} 100%
+        )`
+      : `linear-gradient(
+          90deg,
+          rgba(0,0,0,0.4) 0%,
+          rgba(0,0,0,0.2) 40%,
+          rgba(255,255,255,0.3) 80%,
+          ${theme.palette.background.default} 100%
+        )`,
+    zIndex: 1,
+  }}
+/>
         </Box>
 
         <Box
@@ -212,21 +233,21 @@ const SearchBar = ({ soldStatus = 'false', title }) => {
             px: 4,
             position: 'relative',
             zIndex: 2,
-            background: 'white',
+            bgcolor: 'background.default',
           }}
         >
- <Box sx={{ width: '100%', maxWidth: '500px' }}>
-          <Typography 
-            variant="h4" 
-            component="h1" 
-            sx={{ 
-              mb: 4, 
-              fontWeight: 'bold', 
-              color: 'text.primary',
-            }}
-          >
-            {title || (soldStatus === 'false' ? 'Find Your New Property' : 'Browse Sold Properties')}
-          </Typography>
+          <Box sx={{ width: '100%', maxWidth: '500px' }}>
+            <Typography 
+              variant="h4" 
+              component="h1" 
+              sx={{ 
+                mb: 4, 
+                fontWeight: 'bold',
+                color: 'text.primary',
+              }}
+            >
+              {title || (soldStatus === 'false' ? 'Find Your New Property' : 'Browse Sold Properties')}
+            </Typography>
             
             <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
               <ToggleButtonGroup
@@ -271,7 +292,6 @@ const SearchBar = ({ soldStatus = 'false', title }) => {
                     {...params}
                     label="Search by location"
                     color="secondary"
-
                     fullWidth
                     InputProps={{
                       ...params.InputProps,
@@ -311,7 +331,6 @@ const SearchBar = ({ soldStatus = 'false', title }) => {
               variant="contained" 
               onClick={submitSearch} 
               color="secondary"
-              text="primary"
               fullWidth
               sx={{ 
                 py: 1.5,
@@ -331,9 +350,18 @@ const SearchBar = ({ soldStatus = 'false', title }) => {
         onClose={handlePopoverClose}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-        PaperProps={{ sx: { p: 3, width: 350 } }}
+        PaperProps={{ 
+          sx: { 
+            p: 3, 
+            width: 350,
+            bgcolor: 'background.default',
+            color: 'text.primary'
+          } 
+        }}
       >
-        <Typography variant="h6" sx={{ mb: 2 }}>Advanced Filters</Typography>
+        <Typography variant="h6" sx={{ mb: 2, color: 'text.primary' }}>
+          Advanced Filters
+        </Typography>
         
         <Stack spacing={2}>
           {/* Guide Price Filter */}
@@ -385,8 +413,6 @@ const SearchBar = ({ soldStatus = 'false', title }) => {
               </MenuItem>
             ))}
           </TextField>
-
-          {/* Property Type Filter */}
           <TextField
           fullWidth
           select
@@ -404,7 +430,6 @@ const SearchBar = ({ soldStatus = 'false', title }) => {
           ))}
         </TextField>
 
-          {/* Sorting Options */}
           <TextField
             fullWidth
             select
