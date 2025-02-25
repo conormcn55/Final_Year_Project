@@ -102,7 +102,7 @@ export default function ListingForum() {
             };
 
             console.log('Request Data:', JSON.stringify(requestData, null, 2));
-            const { data } = await axios.post('http://localhost:3001/api/property/new', requestData);
+            const { data } = await axios.post(`${process.env.REACT_APP_API_URL}/property/new`, requestData);
 
             if (data.success === true) {
                 setLoading(false);

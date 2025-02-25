@@ -18,7 +18,7 @@ export default function MessageContainer() {
 
   // Initialize Socket Connection
   useEffect(() => {
-    const newSocket = io('http://localhost:3002');
+    const newSocket = io(process.env.REACT_APP_SOCKET_URL);
     setSocket(newSocket);
 
     return () => newSocket.close();
@@ -29,13 +29,13 @@ export default function MessageContainer() {
     const fetchRooms = async () => {
       if (!userId) return;
       try {
-        const roomsResponse = await axios.get(`http://localhost:3001/api/room/get/${userId}`);
+        const roomsResponse = await axios.get(`${process.env.REACT_APP_API_URL}/room/get/${userId}`);
       
         const roomsData = roomsResponse.data.rooms || [];
         const roomsWithUserDetails = await Promise.all(roomsData.map(async (room) => {
           const otherUserId = room.bidder !== userId ? room.bidder : room.owner;
           
-          const userResponse = await axios.get(`http://localhost:3001/api/user/basic/${otherUserId}`);
+          const userResponse = await axios.get(`${process.env.REACT_APP_API_URL}/user/basic/${otherUserId}`);
           
           return {
             ...room,
@@ -55,32 +55,43 @@ export default function MessageContainer() {
     fetchRooms();
   }, [userId]);
 
-  // Listen for messages when room is selected
+  // Fetch messages when room is selected
   useEffect(() => {
-    if (socket && selectedRoom) {
-      socket.emit('join_room', selectedRoom._id);
-  
-      socket.on('receive_message', (message) => {
-        console.log('Received message:', message);
-        setMessages(prevMessages => [...prevMessages, message]);
-      });
-
+    if (selectedRoom) {
       const fetchRoomMessages = async () => {
         try {
-          const messagesResponse = await axios.get(`http://localhost:3001/api/messages/${selectedRoom._id}`);
+          const messagesResponse = await axios.get(`${process.env.REACT_APP_API_URL}/messages/${selectedRoom._id}`);
           setMessages(messagesResponse.data || []);
         } catch (err) {
           console.error('Error fetching messages:', err);
           setMessages([]);
         }
       };
+      
       fetchRoomMessages();
+    }
+  }, [selectedRoom]);
+
+  // Listen for new socket messages
+  useEffect(() => {
+    if (socket && selectedRoom) {
+      socket.emit('join_room', selectedRoom._id);
+  
+      const handleNewMessage = (message) => {
+        console.log('Received message:', message);
+        // Only add messages from other users to prevent duplicates
+        if (message.sentBy !== userId) {
+          setMessages(prevMessages => [...prevMessages, message]);
+        }
+      };
+
+      socket.on('receive_message', handleNewMessage);
 
       return () => {
-        socket.off('receive_message');
+        socket.off('receive_message', handleNewMessage);
       };
     }
-  }, [socket, selectedRoom]);
+  }, [socket, selectedRoom, userId]);
 
   // Handle Room Selection
   const handleRoomSelect = (room) => {
@@ -100,19 +111,26 @@ export default function MessageContainer() {
     if (!newMessage.trim() || !selectedRoom || !socket) return;
 
     try {
-      socket.emit('send_message', {
+      const messageData = {
         sentBy: userId,
         room: selectedRoom._id,
         message: newMessage
-      });
+      };
 
-      await axios.post('http://localhost:3001/api/messages/', {
-        sentBy: userId,
-        room: selectedRoom._id,
-        message: newMessage
-      });
+      socket.emit('send_message', messageData);
 
+      // Optimistically add message to UI
+      const optimisticMessage = {
+        ...messageData,
+        _id: `temp-${Date.now()}`,
+        time: new Date().toISOString()
+      };
+      
+      setMessages(prevMessages => [...prevMessages, optimisticMessage]);
       setNewMessage('');
+
+      // Then save to database
+      await axios.post(`${process.env.REACT_APP_API_URL}/messages/`, messageData);
     } catch (error) {
       console.error('Error sending message:', error);
     }
@@ -120,11 +138,16 @@ export default function MessageContainer() {
 
   if (loading) return <Typography>Loading...</Typography>;
 
- 
   return (
     <Box sx={{ display: 'flex', height: '100vh' }}>
       {/* Room List */}
-      <Box sx={{ width: '300px', borderRight: '1px solid #ddd' }}>
+      <Box sx={{ 
+        width: '300px', 
+        borderRight: '1px solid #ddd',
+        overflowY: 'auto',
+        display: 'flex',
+        flexDirection: 'column'
+      }}>
         <List>
           {rooms.map((room) => (
             <ListItem 
@@ -150,9 +173,16 @@ export default function MessageContainer() {
       </Box>
 
       {/* Message View */}
-      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <Box sx={{ 
+        flex: 1,
+        display: 'grid',
+        gridTemplateRows: 'auto 1fr auto',
+        height: '100%',
+        overflow: 'hidden'
+      }}>
         {selectedRoom ? (
           <>
+            {/* Header */}
             <Box 
               sx={{ 
                 padding: 2, 
@@ -160,7 +190,8 @@ export default function MessageContainer() {
                 display: 'flex',
                 alignItems: 'center',
                 gap: 2,
-                cursor: 'pointer'
+                cursor: 'pointer',
+                backgroundColor: 'white'
               }}
               onClick={handleProfileClick}
             >
@@ -182,9 +213,10 @@ export default function MessageContainer() {
                 {selectedRoom.otherUserDetails?.user?.name}
               </Typography>
             </Box>
+
+            {/* Messages Container */}
             <Box sx={{ 
-              flex: 1, 
-              overflowY: 'auto', 
+              overflowY: 'auto',
               padding: 2,
               display: 'flex',
               flexDirection: 'column',
@@ -244,7 +276,18 @@ export default function MessageContainer() {
                 </Box>
               ))}
             </Box>
-            <Box component="form" onSubmit={handleSendMessage} sx={{ display: 'flex', padding: 2 }}>
+
+            {/* Message Input */}
+            <Box 
+              component="form" 
+              onSubmit={handleSendMessage} 
+              sx={{ 
+                display: 'flex', 
+                padding: 2,
+                backgroundColor: 'white',
+                borderTop: '1px solid #ddd'
+              }}
+            >
               <TextField
                 fullWidth
                 variant="outlined"

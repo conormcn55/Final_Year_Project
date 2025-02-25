@@ -93,7 +93,7 @@ export default function NavBar({ onThemeToggle, isDark }) {
 
   const handleSignOut = async () => {
     try {
-      await fetch('http://localhost:3001/api/user/logout', {
+      await fetch(`${process.env.REACT_APP_API_URL}/user/logout`, {
         method: 'GET',
         credentials: 'include'
       });
@@ -160,7 +160,7 @@ export default function NavBar({ onThemeToggle, isDark }) {
                 <Button
                   variant="contained"
                   color="primary"
-                  href="http://localhost:3001/api/user/auth/google"
+                  href={`${process.env.REACT_APP_API_URL}/user/auth/google`}
                   sx={{ my: 2 }}
                 >
                   Sign In

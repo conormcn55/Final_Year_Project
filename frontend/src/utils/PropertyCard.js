@@ -64,7 +64,7 @@ const PropertyCard = ({
   useEffect(() => {
     const checkFavoriteStatus = async () => {
       try {
-        const response = await axios.get(`http://localhost:3001/api/favourites/${userId}`);
+        const response = await axios.get(`${process.env.REACT_APP_API_URL}/favourites/${userId}`);
         const isFavourited = response.data.favourites.some(
           fav => fav.property === property._id
         );
@@ -85,14 +85,14 @@ const PropertyCard = ({
     e.stopPropagation();
     try {
       if (isFavorite) {
-        await axios.delete('http://localhost:3001/api/favourites/unfavourite', { 
+        await axios.delete(`${process.env.REACT_APP_API_URL}/favourites/unfavourite`, { 
           data: { 
             user: userId, 
             property: property._id 
           } 
         });
       } else {
-        await axios.post('http://localhost:3001/api/favourites/', { 
+        await axios.post(`${process.env.REACT_APP_API_URL}/favourites/`, { 
           user: userId, 
           property: property._id 
         });

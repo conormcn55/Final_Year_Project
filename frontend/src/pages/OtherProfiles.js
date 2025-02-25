@@ -12,7 +12,7 @@ const OtherProfiles = () => {
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        const { data } = await axios.get(`http://localhost:3001/api/user/basic/${id}`);
+        const { data } = await axios.get(`${process.env.REACT_APP_API_URL}/user/basic/${id}`);
         setUserData(data.user);
       } catch (error) {
         console.error('Failed to fetch user data:', error);

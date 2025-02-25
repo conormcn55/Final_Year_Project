@@ -7,11 +7,14 @@ import {
   Dialog, 
   DialogTitle, 
   DialogContent, 
-  DialogActions 
+  DialogActions,
+  IconButton,
+  Tooltip
 } from '@mui/material';
+import SmartToyIcon from '@mui/icons-material/SmartToy';
 import io from 'socket.io-client';
 
-const socket = io.connect("http://localhost:3002");
+const socket = io.connect(process.env.REACT_APP_SOCKET_URL);
 
 const BidBot = ({ 
   propertyId, 
@@ -90,7 +93,7 @@ const BidBot = ({
           time: new Date().toISOString()
         };
 
-        const bidResponse = await fetch('http://localhost:3001/api/bids/newbid', {
+        const bidResponse = await fetch(`${process.env.REACT_APP_API_URL}/bids/newbid`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -104,7 +107,7 @@ const BidBot = ({
 
         const newBid = await bidResponse.json();
 
-        const propertyUpdateResponse = await fetch(`http://localhost:3001/api/property/${propertyId}/bid`, {
+        const propertyUpdateResponse = await fetch(`${process.env.REACT_APP_API_URL}/property/${propertyId}/bid`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -173,15 +176,32 @@ const BidBot = ({
 
   return (
     <Box>
-      <Button 
-        fullWidth 
-        variant="outlined" 
-        color='secondary'
-        onClick={() => setOpenDialog(true)}
-        sx={{ mb: 1 }}
-      >
-        {isBidBotActive ? 'BidBot Active' : 'Setup BidBot'}
-      </Button>
+      <Tooltip title={isBidBotActive ? "BidBot Active" : "Setup BidBot"}>
+        <IconButton 
+          color="secondary"
+          onClick={() => setOpenDialog(true)}
+          sx={{ mb: 1 }}
+        >
+          <SmartToyIcon sx={{ 
+            color: isBidBotActive ? 'secondary.main' : 'inherit',
+            animation: isBidBotActive ? 'pulse 1.5s infinite' : 'none',
+            '@keyframes pulse': {
+              '0%': {
+                transform: 'scale(1)',
+                opacity: 1
+              },
+              '50%': {
+                transform: 'scale(1.1)',
+                opacity: 0.7
+              },
+              '100%': {
+                transform: 'scale(1)',
+                opacity: 1
+              }
+            }
+          }} />
+        </IconButton>
+      </Tooltip>
 
       {isBidBotActive && (
         <Button 

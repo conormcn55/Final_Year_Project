@@ -18,7 +18,7 @@ const RecentlyListed = () => {
   useEffect(() => {
     const fetchRecentlyListed = async () => {
       try {
-        const response = await axios.get('http://localhost:3001/api/property/recent');
+        const response = await axios.get(`${process.env.REACT_APP_API_URL}/property/recent`);
         const validProperties = response.data.filter(prop => prop && prop._id);
         setProperties(validProperties);
       } catch (err) {
@@ -113,7 +113,16 @@ const RecentlyListed = () => {
             backgroundColor: 'rgba(255,255,255,0.8)',
             color: '#000',
             borderRadius: '50%',
-            boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+            boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+            position: 'absolute',
+            transform: 'translateX(-50px)',  // Left button
+          }
+        }}
+        NavButtonsWrapperProps={{   
+          style: {
+            position: 'absolute',
+            padding: '0 50px',
+            height: '100%'
           }
         }}
       >

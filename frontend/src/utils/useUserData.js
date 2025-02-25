@@ -16,7 +16,7 @@ const useUserData = () => {
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        const response = await fetch('http://localhost:3001/api/user/me', {
+        const response = await fetch(`${process.env.REACT_APP_API_URL}/user/me`, {
           credentials: 'include',
         });
         if (response.ok) {

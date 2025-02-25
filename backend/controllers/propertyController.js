@@ -366,4 +366,17 @@ exports.getPropertiesByIds = async (req, res) => {
       res.status(500).json({ message: 'Error fetching properties' });
     }
   };
-  
+  exports.getPropertiesByListerId = async (req, res) => {
+    try {
+        const properties = await Property.find({ 'listedBy.listerID': req.params.listerId });
+        
+        if (!properties.length) {
+            return res.status(404).json({ message: 'No properties found for this lister' });
+        }
+
+        res.json(properties);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error retrieving properties' });
+    }
+};

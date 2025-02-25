@@ -22,11 +22,11 @@ const FavouritesPage = () => {
     const fetchFavorites = async () => {
       try {
         setLoading(true);
-        const { data } = await axios.get(`http://localhost:3001/api/favourites/${userId}`);
+        const { data } = await axios.get(`${process.env.REACT_APP_API_URL}/favourites/${userId}`);
         const propertyIds = data.favourites.map(fav => fav.property);
 
         if (propertyIds.length) {
-          const response = await axios.post('http://localhost:3001/api/property/ids', { ids: propertyIds });
+          const response = await axios.post(`${process.env.REACT_APP_API_URL}/property/ids`, { ids: propertyIds });
           setProperties(response.data.properties);
         }
         setError(null);

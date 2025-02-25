@@ -68,7 +68,7 @@ export default function OtherUserInfo({ userId }) {
 
     const fetchUserData = async () => {
       try {
-        const response = await axios.get(`http://localhost:3001/api/user/${userId}`);
+        const response = await axios.get(`${process.env.REACT_APP_API_URL}/user/${userId}`);
         setUserData(response.data);
       } catch (error) {
         console.error('Failed to fetch user details:', error);

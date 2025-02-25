@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardMedia, Typography, Avatar, Button, TextField,Link, Snackbar, Alert, CircularProgress, Box } from '@mui/material';
+import { Card, CardContent, CardMedia, Typography, Avatar, Button, TextField, Link, Snackbar, Alert, CircularProgress, Box } from '@mui/material';
 import { Check as CheckIcon, Close as CloseIcon, BrokenImage as BrokenImageIcon } from '@mui/icons-material';
 import useUserData from '../utils/useUserData';
 import axios from 'axios';
@@ -25,28 +25,45 @@ const ApprovalList = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const { data: requestsData } = await axios.get(`http://localhost:3001/api/request/approver/${userId}`);
-      setRequests(requestsData.requests.filter(request => !request.approved));
+      const { data: requestsData } = await axios.get(`${process.env.REACT_APP_API_URL}/request/approver/${userId}`);
+      
+      // Filter for unapproved requests only
+      const pendingRequests = requestsData.requests.filter(request => request.approved === false);
+      console.log('Pending requests found:', pendingRequests.length);
+      setRequests(pendingRequests);
 
-      const requestersData = await Promise.all(
-        requestsData.requests.map(async (request) => {
-          const { data } = await axios.get(`http://localhost:3001/api/user/basic/${request.requesterId}`);
-          return { [request.requesterId]: data };
-        })
-      );
-      setRequesters(Object.assign({}, ...requestersData));
+      // Only fetch user and property data for pending requests to improve performance
+      if (pendingRequests.length > 0) {
+        const requestersData = await Promise.all(
+          pendingRequests.map(async (request) => {
+            try {
+              const { data } = await axios.get(`${process.env.REACT_APP_API_URL}/user/basic/${request.requesterId}`);
+              return { [request.requesterId]: data };
+            } catch (err) {
+              console.error(`Error fetching requester ${request.requesterId}:`, err);
+              return { [request.requesterId]: { user: { name: 'Unknown User' } } };
+            }
+          })
+        );
+        setRequesters(Object.assign({}, ...requestersData));
 
-      const propertiesData = await Promise.all(
-        requestsData.requests.map(async (request) => {
-          const { data } = await axios.get(`http://localhost:3001/api/property/${request.propertyId}`);
-          return { [request.propertyId]: data };
-        })
-      );
-      setProperties(Object.assign({}, ...propertiesData));
+        const propertiesData = await Promise.all(
+          pendingRequests.map(async (request) => {
+            try {
+              const { data } = await axios.get(`${process.env.REACT_APP_API_URL}/property/${request.propertyId}`);
+              return { [request.propertyId]: data };
+            } catch (err) {
+              console.error(`Error fetching property ${request.propertyId}:`, err);
+              return { [request.propertyId]: { address: { addressLine1: 'Unknown', addressTown: '', addressCounty: '' } } };
+            }
+          })
+        );
+        setProperties(Object.assign({}, ...propertiesData));
+      }
 
       setError(null);
     } catch (err) {
-      setError('Failed to fetch requests');
+      setError('Failed to load approval requests');
       console.error('Error fetching Requests:', err);
     } finally {
       setLoading(false);
@@ -65,22 +82,23 @@ const ApprovalList = () => {
   const handleApprove = async (request) => {
     setActionInProgress(request._id);
     try {
-      await axios.put(`http://localhost:3001/api/request/edit/${request._id}`, {
+      await axios.put(`${process.env.REACT_APP_API_URL}/request/edit/${request._id}`, {
         amountAllowed: request.amountAllowed,
         approved: true
       });
       setSnackbar({
         open: true,
-        message: 'Request approved',
+        message: 'Request approved successfully',
         severity: 'success'
       });
       await fetchData();
     } catch (err) {
       setSnackbar({
         open: true,
-        message: 'Request approved',
+        message: 'Failed to approve request',
         severity: 'error'
       });
+      console.error('Error approving request:', err);
     } finally {
       setActionInProgress(null);
     }
@@ -89,19 +107,20 @@ const ApprovalList = () => {
   const handleDecline = async (request) => {
     setActionInProgress(request._id);
     try {
-      await axios.delete(`http://localhost:3001/api/request/${request._id}`);
+      await axios.delete(`${process.env.REACT_APP_API_URL}/request/${request._id}`);
       setSnackbar({
         open: true,
-        message: 'Request denied',
+        message: 'Request declined successfully',
         severity: 'success'
       });
       await fetchData();
     } catch (err) {
       setSnackbar({
         open: true,
-        message: 'Request denied',
+        message: 'Failed to decline request',
         severity: 'error'
       });
+      console.error('Error declining request:', err);
     } finally {
       setActionInProgress(null);
     }
@@ -130,13 +149,15 @@ const ApprovalList = () => {
 
   if (!Array.isArray(requests) || requests.length === 0) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight={200}>
+      <Box display="flex" flexDirection="column" justifyContent="center" alignItems="center" minHeight={200} gap={2}>
         <Typography color="text.secondary">
           No pending approval requests found.
         </Typography>
+
       </Box>
     );
   }
+  
   const handleProfileClick = (requesterId) => {
     const requesterData = requesters[requesterId];
     if (requesterId === userId) {
@@ -145,11 +166,26 @@ const ApprovalList = () => {
       navigate(`/profile/${requesterId}`);
     }
   };
+  
   return (
     <Box sx={{ maxWidth: 1000, margin: '0 auto', pt: 3 }}>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+        <Typography variant="h5" component="h1">
+          Pending Approval Requests ({requests.length})
+        </Typography>
+        <Button 
+          variant="outlined" 
+          onClick={fetchData}
+          startIcon={loading ? <CircularProgress size={16} /> : null}
+          disabled={loading}
+        >
+          Refresh
+        </Button>
+      </Box>
+      
       {requests.map((request) => {
-        const property = properties[request.propertyId];
-        const requester = requesters[request.requesterId]?.user;
+        const property = properties[request.propertyId] || { address: { addressLine1: 'Loading...', addressTown: '', addressCounty: '' } };
+        const requester = requesters[request.requesterId]?.user || { name: 'Unknown User' };
         const addressText = property ? 
           `${property.address.addressLine1}, ${property.address.addressTown}, ${property.address.addressCounty}` :
           'Loading address...';
@@ -207,12 +243,13 @@ const ApprovalList = () => {
                           label="Amount"
                           type="number"
                           size="small"
-                          value={request.amountAllowed}
+                          value={request.amountAllowed === "0" ? "" : request.amountAllowed || ""}
                           onChange={(e) => handleAmountChange(request, e.target.value)}
                           sx={{ width: 150 }}
                           InputProps={{
                             inputProps: { min: 0 }
                           }}
+                          placeholder="Enter amount"
                         />
                         
                         <Box display="flex" gap={1}>

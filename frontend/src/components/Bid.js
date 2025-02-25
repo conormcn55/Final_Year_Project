@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Box, Typography, TextField, Button, Card, CardContent, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Collapse, IconButton, Divider } from '@mui/material';
-import { CalendarToday, ExpandMore, ExpandLess } from '@mui/icons-material';
+import { Box, Typography, TextField, Button, Card, CardContent, Divider } from '@mui/material';
+import { CalendarToday } from '@mui/icons-material';
 import DOMPurify from 'dompurify';
 import io from 'socket.io-client';
 import useUserData from '../utils/useUserData';
 import BidBot from './BidBot';
-const socket = io.connect("http://localhost:3002");
+import BidHistory from './BidHistory'; 
+const socket = io.connect(process.env.REACT_APP_SOCKET_URL);
 
 const formatDateTime = (dateString) => {
   const date = new Date(dateString);
@@ -25,6 +26,20 @@ const formatDateTime = (dateString) => {
   };
 };
 
+// Function to parse various bid formats
+const parseBidAmount = (bidInput) => {
+  if (!bidInput) return 0;
+  
+  // Remove euro symbol if present
+  let cleanBid = bidInput.toString().replace(/€/g, '');
+  
+  // Remove commas and spaces
+  cleanBid = cleanBid.replace(/,/g, '').replace(/\s/g, '');
+  
+  // Convert to number
+  return parseFloat(cleanBid);
+};
+
 export default function Bid() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -38,7 +53,6 @@ export default function Bid() {
   const [animateUpdate, setAnimateUpdate] = useState(false);
   const [error, setError] = useState("");
   const [bids, setBids] = useState([]);
-  const [showBids, setShowBids] = useState(false);
   const [isApproved, setIsApproved] = useState();
   const [winningBid, setWinningBid] = useState(null);
   const { _id: userId, name: userName } = useUserData();
@@ -52,40 +66,46 @@ export default function Bid() {
 
   useEffect(() => {
     const fetchPropertyInfo = async () => {
-      if (userId) {
-        try {
-          const { data } = await axios.get(`http://localhost:3001/api/property/${id}`);
-          setLatestBid({ bid: data.currentBid.amount });
-          setGuidePrice(data.guidePrice);
-          setApprover(data.listedBy.listerID);
-          setSaleDate(data.saleDate);
-          const saleTime = new Date(data.saleDate);
-          const now = new Date();
-          if (saleTime < now && !data.sold) {
-            try {
-              await axios.put(`http://localhost:3001/api/property/sold/${id}`);
-              setBiddingEnded(true);
-            } catch (error) {
-              console.error('Error marking property as sold:', error);
-            }
+      try {
+        const { data } = await axios.get(`${process.env.REACT_APP_API_URL}/property/${id}`);
+        setLatestBid({ bid: data.currentBid.amount });
+        setGuidePrice(data.guidePrice);
+        setApprover(data.listedBy.listerID);
+        setSaleDate(data.saleDate);
+        
+        const saleTime = new Date(data.saleDate);
+        const now = new Date();
+        if (saleTime < now && !data.sold) {
+          try {
+            await axios.put(`${process.env.REACT_APP_API_URL}/property/sold/${id}`);
+            setBiddingEnded(true);
+          } catch (error) {
+            console.error('Error marking property as sold:', error);
           }
-  
-          const approvalResponse = await axios.get(`http://localhost:3001/api/request/check/${userId}/${id}`);
-          setIsApproved(approvalResponse.data.approved);
-          setRequestPending(approvalResponse.data.exists && !approvalResponse.data.approved);
-          setAmountAllowed(approvalResponse.data.amountAllowed);
-  
-          const bidsResponse = await axios.get(`http://localhost:3001/api/bids/propertyBid/${id}`);
-          const sanitizedBids = bidsResponse.data.map(bid => ({
-            ...bid,
-            userName: DOMPurify.sanitize(bid.userName)
-          }));
-          setBids(sortBidsByTime(sanitizedBids));
-        } catch (err) {
-          console.error('Error fetching property info:', err);
         }
+
+        const bidsResponse = await axios.get(`${process.env.REACT_APP_API_URL}/bids/propertyBid/${id}`);
+        const sanitizedBids = bidsResponse.data.map(bid => ({
+          ...bid,
+          userName: DOMPurify.sanitize(bid.userName)
+        }));
+        setBids(sortBidsByTime(sanitizedBids));
+        
+        if (userId) {
+          try {
+            const approvalResponse = await axios.get(`${process.env.REACT_APP_API_URL}/request/check/${userId}/${id}`);
+            setIsApproved(approvalResponse.data.approved);
+            setRequestPending(approvalResponse.data.exists && !approvalResponse.data.approved);
+            setAmountAllowed(approvalResponse.data.amountAllowed);
+          } catch (err) {
+            console.error('Error checking approval status:', err);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching property info:', err);
       }
     };
+    
     fetchPropertyInfo();
   }, [id, userId]);
 
@@ -109,7 +129,7 @@ export default function Bid() {
  
           const markPropertyAsSold = async () => {
             try {
-              await axios.put(`http://localhost:3001/api/property/sold/${id}`);
+              await axios.put(`${process.env.REACT_APP_API_URL}/property/sold/${id}`);
             } catch (error) {
               console.error('Error marking property as sold:', error);
             }
@@ -131,8 +151,14 @@ export default function Bid() {
         return;
       }
 
-      const bidAmount = parseFloat(bid);
+      // Parse the bid amount using the new function
+      const bidAmount = parseBidAmount(bid);
       const currentBid = parseFloat(latestBid.bid);
+
+      if (isNaN(bidAmount) || bidAmount <= 0) {
+        setError("Please enter a valid bid amount.");
+        return;
+      }
 
       if (bidAmount <= currentBid) {
         setError("Your bid must be higher than the current bid.");
@@ -152,7 +178,7 @@ export default function Bid() {
         time: new Date().toISOString()
       };
 
-      const bidResponse = await fetch('http://localhost:3001/api/bids/newbid', {
+      const bidResponse = await fetch(`${process.env.REACT_APP_API_URL}/bids/newbid`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -167,7 +193,7 @@ export default function Bid() {
 
       const newBid = await bidResponse.json();
       
-      const propertyUpdateResponse = await fetch(`http://localhost:3001/api/property/${id}/bid`, {
+      const propertyUpdateResponse = await fetch(`${process.env.REACT_APP_API_URL}/property/${id}/bid`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -196,7 +222,7 @@ export default function Bid() {
       setBid("");
       setError("");
 
-      const bidsResponse = await axios.get(`http://localhost:3001/api/bids/propertyBid/${id}`);
+      const bidsResponse = await axios.get(`${process.env.REACT_APP_API_URL}/bids/propertyBid/${id}`);
       const sanitizedBids = bidsResponse.data.map(bid => ({
         ...bid,
         userName: DOMPurify.sanitize(bid.userName)
@@ -232,13 +258,15 @@ export default function Bid() {
     };
   }, [socket, room]);
 
-  const toggleBids = () => {
-    setShowBids(!showBids);
-  };
-
   const requestApproval = async () => {
+    // Instead of showing an error, redirect to the login page if not logged in
+    if (!userId) {
+      window.location.href = `${process.env.REACT_APP_API_URL}/user/auth/google`;
+      return;
+    }
+    
     try {
-      await axios.post(`http://localhost:3001/api/request/new`, {
+      await axios.post(`${process.env.REACT_APP_API_URL}/request/new`, {
         requesterId: userId,
         approverId: approver,
         propertyId: id
@@ -260,8 +288,14 @@ export default function Bid() {
   }, [bids]);
 
   const handleMessageSeller = async () => {
+    // Redirect to login if not logged in
+    if (!userId) {
+      window.location.href = `${process.env.REACT_APP_API_URL}/user/auth/google`;
+      return;
+    }
+    
     try {
-      const roomResponse = await axios.post('http://localhost:3001/api/room/new', {
+      const roomResponse = await axios.post(`${process.env.REACT_APP_API_URL}/room/new`, {
         bidder: userId,
         owner: approver
       });
@@ -279,7 +313,10 @@ export default function Bid() {
       }
     }
   };
-
+  
+  // Direct login URL matching the one in NavBar
+  const loginUrl = `${process.env.REACT_APP_API_URL}/user/auth/google`;
+  
   return (
     <Box>
       <Card sx={{ position: 'sticky', top: '1rem' }}>
@@ -318,7 +355,19 @@ export default function Bid() {
             Guide Price: €{guidePrice?.toLocaleString()}
           </Typography>
   
-          <Typography variant="body1" sx={{ fontWeight: 'bold', mb: 1 }}>
+          <Typography 
+            variant="body1" 
+            sx={{ 
+              fontWeight: 'bold', 
+              mb: 1,
+              animation: animateUpdate ? 'flash 0.5s ease-in-out' : 'none',
+              '@keyframes flash': {
+                '0%': { opacity: 1 },
+                '50%': { opacity: 0.5 },
+                '100%': { opacity: 1 }
+              }
+            }}
+          >
             Current Bid: €{latestBid?.bid?.toLocaleString() || "N/A"}
           </Typography>
   
@@ -376,6 +425,10 @@ export default function Bid() {
                         setBid(event.target.value);
                       }}
                       sx={{ mb: 1 }}
+                      placeholder="e.g. 100,000 or 100000"
+                      inputProps={{
+                        inputMode: 'text',
+                      }}
                     />
                     <Button
                       fullWidth
@@ -403,7 +456,7 @@ export default function Bid() {
                         
                         const refreshBids = async () => {
                           try {
-                            const bidsResponse = await axios.get(`http://localhost:3001/api/bids/propertyBid/${id}`);
+                            const bidsResponse = await axios.get(`${process.env.REACT_APP_API_URL}/propertyBid/${id}`);
                             const sanitizedBids = bidsResponse.data.map(bid => ({
                               ...bid,
                               userName: DOMPurify.sanitize(bid.userName)
@@ -432,14 +485,15 @@ export default function Bid() {
                     >
                       {requestPending 
                         ? ''
-                        : 'You need approval to place bids on this property'}
+                        : (userId ? 'You need approval to place bids on this property' : 'Please log in to bid on this property')}
                     </Typography>
                     <Button
                       fullWidth
                       variant="contained"
                       size="small"
-                      onClick={requestApproval}
+                      onClick={requestPending ? null : requestApproval}
                       disabled={requestPending}
+                      href={requestPending ? undefined : (!userId ? loginUrl : undefined)}
                       sx={{ 
                         color: "white",
                         bgcolor: requestPending ? '#ccc' : '#123871',
@@ -452,7 +506,7 @@ export default function Bid() {
                         }
                       }}
                     >
-                      {requestPending ? 'Approval Pending' : 'Request Approval'}
+                      {requestPending ? 'Approval Pending' : (userId ? 'Request Approval' : 'Sign In')}
                     </Button>
                   </Box>
                 )}
@@ -460,102 +514,7 @@ export default function Bid() {
             )
           )}
   
-          <Divider sx={{ mb: 2 }} />
-          <Typography 
-            variant="h6" 
-            sx={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              cursor: 'pointer',
-              gap: 0.5,
-              fontWeight: 'bold'
-            }}
-            onClick={toggleBids}
-          >
-            {showBids ? <ExpandLess /> : <ExpandMore />}
-            Bid History
-          </Typography>
-          <Collapse in={showBids}>
-            {bids.length ? (
-              <TableContainer 
-                component={Paper}
-                sx={{
-                  maxHeight: '300px',
-                  overflowY: 'auto',
-                  '&::-webkit-scrollbar': {
-                    width: '8px',
-                  },
-                  '&::-webkit-scrollbar-track': {
-                    backgroundColor: '#f1f1f1',
-                  },
-                  '&::-webkit-scrollbar-thumb': {
-                    backgroundColor: '#888',
-                    borderRadius: '4px',
-                    '&:hover': {
-                      backgroundColor: '#555',
-                    },
-                  },
-                }}
-              >
-                <Table 
-                  size="small" 
-                  aria-label="bid history"
-                  stickyHeader
-                >
-                  <TableHead>
-                    <TableRow>
-                      <TableCell 
-                        sx={{ 
-                          bgcolor: '#f5f5f5',
-                          fontWeight: 'bold'
-                        }}
-                      >
-                        User
-                      </TableCell>
-                      <TableCell 
-                        align="right"
-                        sx={{ 
-                          bgcolor: '#f5f5f5',
-                          fontWeight: 'bold'
-                        }}
-                      >
-                        Amount (€)
-                      </TableCell>
-                      <TableCell 
-                        align="right"
-                        sx={{ 
-                          bgcolor: '#f5f5f5',
-                          fontWeight: 'bold'
-                        }}
-                      >
-                        Time
-                      </TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {bids.map((bid) => (
-                      <TableRow 
-                        key={bid._id}
-                        sx={{
-                          '&:nth-of-type(odd)': {
-                            backgroundColor: '#fafafa',
-                          },
-                        }}
-                      >
-                        <TableCell>{bid.userName}</TableCell>
-                        <TableCell align="right">{bid.amount?.toLocaleString()}</TableCell>
-                        <TableCell align="right">{new Date(bid.time).toLocaleString()}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            ) : (
-              <Typography variant="body2" sx={{ mt: 1 }}>
-                No bids have been placed yet.
-              </Typography>
-            )}
-          </Collapse>
+          <BidHistory bids={bids} />
         </CardContent>
       </Card>
     </Box>

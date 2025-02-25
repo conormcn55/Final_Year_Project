@@ -1,18 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate , Link} from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import useUserData from '../utils/useUserData';
 import { 
   Box, 
   Typography, 
-  Container, 
   IconButton,
   Paper,
   Grid,
-  Chip,
   Collapse,
-  Card,
-  CardContent,
   Button,
   Fade
 } from '@mui/material';
@@ -21,7 +17,6 @@ import {
   BathtubOutlined,
   HomeOutlined,
   SquareFoot,
-  CalendarToday,
   ArrowBack,
   ChevronLeft,
   ChevronRight,
@@ -152,7 +147,8 @@ const ImageCarousel = ({ images }) => {
 const PropertyInfo = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { _id: userId } = useUserData();
+  const userData = useUserData();
+  const userId = userData?._id;
   const [property, setProperty] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -160,49 +156,58 @@ const PropertyInfo = () => {
   const [isFavorite, setIsFavorite] = useState(false);
 
   useEffect(() => {
-    const fetchPropertyAndFavorites = async () => {
+    const fetchProperty = async () => {
       try {
         setLoading(true);
-        const [propertyResponse, favoritesResponse] = await Promise.all([
-          axios.get(`http://localhost:3001/api/property/${id}`),
-          axios.get(`http://localhost:3001/api/favourites/${userId}`)
-        ]);
+        // Add debug logs
+        console.log('API URL:', process.env.REACT_APP_API_URL);
+        console.log('Property ID:', id);
+        
+        const propertyUrl = `${process.env.REACT_APP_API_URL}/property/${id}`;
+        console.log('Fetching from:', propertyUrl);
+        
+        const propertyResponse = await axios.get(propertyUrl);
+        console.log('Property response:', propertyResponse);
         
         setProperty(propertyResponse.data);
-        
-        // Check if the current property is in the user's favorites
-        const isFavourited = favoritesResponse.data.favourites.some(
-          fav => fav.property === id
-        );
-        
-        setIsFavorite(isFavourited);
         setError(null);
+
+        // Only fetch favorites if user is logged in
+        if (userId) {
+          const favoritesUrl = `${process.env.REACT_APP_API_URL}/favourites/${userId}`;
+          console.log('Fetching favorites from:', favoritesUrl);
+          
+          const favoritesResponse = await axios.get(favoritesUrl);
+          console.log('Favorites response:', favoritesResponse);
+          
+          const isFavourited = favoritesResponse.data.favourites.some(
+            fav => fav.property === id
+          );
+          setIsFavorite(isFavourited);
+        }
       } catch (err) {
-        setError('Property not found');
-        console.error('Error fetching property:', err);
+        console.error('Full error:', err);
+        setError(err.response?.data?.message || 'Property not found');
       } finally {
         setLoading(false);
       }
     };
 
-    if (userId) {
-      fetchPropertyAndFavorites();
-    }
+    fetchProperty();
   }, [id, userId]);
-
   const toggleFavorite = async () => {
     if (!userId) return;
     
     try {
       if (isFavorite) {
-        await axios.delete('http://localhost:3001/api/favourites/unfavourite', { 
+        await axios.delete(`${process.env.REACT_APP_API_URL}/favourites/unfavourite`, { 
           data: { 
             user: userId, 
             property: id 
           } 
         });
       } else {
-        await axios.post('http://localhost:3001/api/favourites/', { 
+        await axios.post(`${process.env.REACT_APP_API_URL}/favourites/`, { 
           user: userId, 
           property: id 
         });
@@ -223,14 +228,12 @@ const PropertyInfo = () => {
     bedrooms, 
     images, 
     propertyType, 
-    saleDate,
     sqdMeters,
     description,
     listedBy
   } = property;
 
   return (
-    
     <Box sx={{ py: 4 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <IconButton onClick={() => navigate(-1)}>
@@ -266,7 +269,6 @@ const PropertyInfo = () => {
           </Link>
         </Typography>
       </Box>
-
 
       <Paper elevation={2}>
         <ImageCarousel images={images || []} />

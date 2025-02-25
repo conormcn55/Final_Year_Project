@@ -25,8 +25,9 @@ const SearchResults = () => {
     const fetchResults = async () => {
       try {
         setLoading(true);
+        console.log('API URL:', process.env.REACT_APP_API_URL);
         const params = Object.fromEntries(searchParams.entries());
-        const { data } = await axios.get('http://localhost:3001/api/property/search', { params });
+        const { data } = await axios.get(`${process.env.REACT_APP_API_URL}/property/search`, { params });
         setResults(data);
         setError(null);
       } catch (err) {

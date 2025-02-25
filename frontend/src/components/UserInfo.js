@@ -121,7 +121,7 @@ export default function UserInfo() {
     if (fileToDelete._id && !fileToDelete.isNew) {
       try {
         const response = await axios.delete(
-          `http://localhost:3001/api/user/removefile/${userData._id}/files/${fileToDelete._id}`,
+          `${process.env.REACT_APP_API_URL}/user/removefile/${userData._id}/files/${fileToDelete._id}`,
           { withCredentials: true }
         );
         if (response.status === 200) {
@@ -159,7 +159,7 @@ export default function UserInfo() {
       };
 
       const response = await axios.put(
-        `http://localhost:3001/api/user/edit/${userData._id}`,
+        `${process.env.REACT_APP_API_URL}/user/edit/${userData._id}`,
         updateData,
         { withCredentials: true }
       );

@@ -169,9 +169,7 @@ exports.updateUser = async (req, res) => {
 exports.deleteFiles = async (req, res) => {
     try {
         const { userId, fileId } = req.params;
-      //  console.log('User ID:', userId);  // Debugging statement
-     //   console.log('File ID:', fileId);  // Debugging statement
-        
+z
         const result = await User.findByIdAndUpdate(userId, {
           $pull: { files: { _id: fileId } }
         });

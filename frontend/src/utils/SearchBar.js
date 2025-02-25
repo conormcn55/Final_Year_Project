@@ -3,14 +3,27 @@ import { useNavigate } from 'react-router-dom';
 import {
   Box, TextField, Autocomplete, InputAdornment, MenuItem, Typography,
   Popover, IconButton, Stack, Paper, Button, Grid, Container, 
-  ToggleButtonGroup, ToggleButton,useTheme
+  ToggleButtonGroup, ToggleButton, useTheme
 } from '@mui/material';
 import { LocationOn as LocationOnIcon, FilterAlt as FilterAltIcon } from '@mui/icons-material';
 import { debounce } from '@mui/material/utils';
 import propertyType from './propertyType';
 import stockPhoto from '../images/stockPhoto.jpg';
+import 'dialog-polyfill/dist/dialog-polyfill.css';
+import dialogPolyfill from 'dialog-polyfill';
   
 const GOOGLE_MAPS_API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
+
+// Add polyfill setup
+const setupDialogPolyfill = () => {
+  if (typeof HTMLDialogElement === 'undefined') {
+    window.HTMLDialogElement = class HTMLDialogElement extends HTMLElement {};
+    const dialogs = document.getElementsByTagName('dialog');
+    Array.from(dialogs).forEach(dialog => {
+      dialogPolyfill.registerDialog(dialog);
+    });
+  }
+};
 
 const SearchBar = ({ soldStatus = 'false', title }) => {
   const theme = useTheme();
@@ -28,20 +41,20 @@ const SearchBar = ({ soldStatus = 'false', title }) => {
     sort: '', 
     propertyType: '', 
     listingType: 'sale',
-    sold: soldStatus, 
+    sold: soldStatus,
+    currentDate: new Date().toISOString() 
   });
-
 
   const loaded = useRef(false);
   const autocompleteService = useRef(null);
 
   useEffect(() => {
-    // Update soldStatus when prop changes
     setSearchParams(prev => ({
       ...prev,
       sold: soldStatus
     }));
   }, [soldStatus]);
+
   useEffect(() => {
     if (!loaded.current && typeof window !== 'undefined') {
       loadGoogleMapsScript();
@@ -51,10 +64,16 @@ const SearchBar = ({ soldStatus = 'false', title }) => {
 
   const loadGoogleMapsScript = () => {
     if (!document.querySelector('#google-maps')) {
+      // Setup polyfill before loading Google Maps
+      setupDialogPolyfill();
+      
       const script = document.createElement('script');
       script.id = 'google-maps';
       script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places`;
       script.async = true;
+      script.onerror = () => {
+        console.error('Failed to load Google Maps script');
+      };
       document.head.appendChild(script);
     }
   };
@@ -136,6 +155,10 @@ const SearchBar = ({ soldStatus = 'false', title }) => {
         processedParams.location = `County ${processedParams.location}`;
       }
     }
+    if (soldStatus === 'false') {
+      processedParams.filterFutureOnly = 'true';
+    }
+    
     const filteredParams = Object.fromEntries(
       Object.entries(processedParams).filter(([_, v]) => v)
     );
@@ -143,9 +166,9 @@ const SearchBar = ({ soldStatus = 'false', title }) => {
   
     navigate(`/search-results?${searchQuery}`);
   };
+
   const handlePopoverClick = (event) => setAnchorEl(event.currentTarget);
   const handlePopoverClose = () => setAnchorEl(null);
-
 
   return (
     <Box
@@ -197,31 +220,31 @@ const SearchBar = ({ soldStatus = 'false', title }) => {
               }
             }}
           />
-<Box
-  sx={{
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    background: theme.palette.mode === 'dark'
-      ? `linear-gradient(
-          90deg,
-          rgba(0,0,0,0.4) 0%,
-          rgba(0,0,0,0.2) 40%,
-          rgba(18,18,18,0.3) 80%,
-          ${theme.palette.background.default} 100%
-        )`
-      : `linear-gradient(
-          90deg,
-          rgba(0,0,0,0.4) 0%,
-          rgba(0,0,0,0.2) 40%,
-          rgba(255,255,255,0.3) 80%,
-          ${theme.palette.background.default} 100%
-        )`,
-    zIndex: 1,
-  }}
-/>
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: theme.palette.mode === 'dark'
+                ? `linear-gradient(
+                    90deg,
+                    rgba(0,0,0,0.4) 0%,
+                    rgba(0,0,0,0.2) 40%,
+                    rgba(18,18,18,0.3) 80%,
+                    ${theme.palette.background.default} 100%
+                  )`
+                : `linear-gradient(
+                    90deg,
+                    rgba(0,0,0,0.4) 0%,
+                    rgba(0,0,0,0.2) 40%,
+                    rgba(255,255,255,0.3) 80%,
+                    ${theme.palette.background.default} 100%
+                  )`,
+              zIndex: 1,
+            }}
+          />
         </Box>
 
         <Box
@@ -364,7 +387,6 @@ const SearchBar = ({ soldStatus = 'false', title }) => {
         </Typography>
         
         <Stack spacing={2}>
-          {/* Guide Price Filter */}
           <TextField
             fullWidth
             label="Maximum Guide Price"
@@ -378,7 +400,6 @@ const SearchBar = ({ soldStatus = 'false', title }) => {
             }}
           />
 
-          {/* Bedrooms Filter */}
           <TextField
             fullWidth
             select
@@ -390,13 +411,10 @@ const SearchBar = ({ soldStatus = 'false', title }) => {
           >
             <MenuItem value="">Any</MenuItem>
             {[1, 2, 3, 4, 5].map((num) => (
-              <MenuItem key={num} value={num}>
-                {num} 
-              </MenuItem>
+              <MenuItem key={num} value={num}>{num}</MenuItem>
             ))}
           </TextField>
 
-          {/* Bathrooms Filter */}
           <TextField
             fullWidth
             select
@@ -408,27 +426,26 @@ const SearchBar = ({ soldStatus = 'false', title }) => {
           >
             <MenuItem value="">Any</MenuItem>
             {[1, 2, 3, 4, 5].map((num) => (
-              <MenuItem key={num} value={num}>
-                {num}
+              <MenuItem key={num} value={num}>{num}</MenuItem>
+            ))}
+          </TextField>
+
+          <TextField
+            fullWidth
+            select
+            label="Property Type"
+            name="propertyType"
+            color="secondary"
+            value={searchParams.propertyType}
+            onChange={handleSearchParamChange}
+          >
+            <MenuItem value="">Any Type</MenuItem>
+            {propertyType.map((type) => (
+              <MenuItem key={type.value} value={type.value}>
+                {type.label}
               </MenuItem>
             ))}
           </TextField>
-          <TextField
-          fullWidth
-          select
-          label="Property Type"
-          name="propertyType"
-          color="secondary"
-          value={searchParams.propertyType}
-          onChange={handleSearchParamChange}
-        >
-          <MenuItem value="">Any Type</MenuItem>
-          {propertyType.map((type) => (
-            <MenuItem key={type.value} value={type.value}>
-              {type.label}
-            </MenuItem>
-          ))}
-        </TextField>
 
           <TextField
             fullWidth
@@ -439,11 +456,10 @@ const SearchBar = ({ soldStatus = 'false', title }) => {
             value={searchParams.sort}
             onChange={handleSearchParamChange}
           >
-
-        <MenuItem value="priceLowHigh">Guide Price: Low to High</MenuItem>
-        <MenuItem value="priceHighLow">Guide Price: High to Low</MenuItem>
-        <MenuItem value="currentBidLowHigh">Current Bid: Low to High</MenuItem>
-        <MenuItem value="currentBidHighLow">Current Bid: High to Low</MenuItem>
+            <MenuItem value="priceLowHigh">Guide Price: Low to High</MenuItem>
+            <MenuItem value="priceHighLow">Guide Price: High to Low</MenuItem>
+            <MenuItem value="currentBidLowHigh">Current Bid: Low to High</MenuItem>
+            <MenuItem value="currentBidHighLow">Current Bid: High to Low</MenuItem>
           </TextField>
 
           <Button 

@@ -19,7 +19,7 @@ const EndingSoon = () => {
   useEffect(() => {
     const fetchEndingSoon = async () => {
       try {
-        const response = await axios.get('http://localhost:3001/api/property/endingsoon');
+        const response = await axios.get(`${process.env.REACT_APP_API_URL}/property/endingsoon`);
         console.log('API Response:', response.data);
 
         if (response.data && response.data.data) {
@@ -116,7 +116,16 @@ const EndingSoon = () => {
             backgroundColor: 'rgba(255,255,255,0.8)',
             color: '#000',
             borderRadius: '50%',
-            boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+            boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+            position: 'absolute',
+            transform: 'translateX(-50px)',  
+          }
+        }}
+        NavButtonsWrapperProps={{   
+          style: {
+            position: 'absolute',
+            padding: '0 50px',
+            height: '100%'
           }
         }}
       >

@@ -14,6 +14,7 @@ router.get('/:id', propertyController.getProperty);
 router.delete('/clearProps', propertyController.deleteAllProperties);
 router.put('/:id/bid', propertyController.updateCurrentBid);
 router.post('/ids', propertyController.getPropertiesByIds);
+router.get('/lister/:listerId', propertyController.getPropertiesByListerId);
 
 
 

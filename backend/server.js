@@ -15,9 +15,9 @@ const PORT = process.env.PORT || 3001;
 
 const server = http.createServer(app)
 const io = new Server(server, {
-  cors:{
-    origin: "http://localhost:3000",
-    methods:['GET', 'POST', 'PUT', 'DELETE']
+  cors: {
+    origin: process.env.CLIENT_URL || "http://localhost:3000",
+    methods: ['GET', 'POST', 'PUT', 'DELETE']
   }
 })
 
@@ -41,8 +41,6 @@ socket.on("send_message", async (data) => {
     const savedMessage = await newMessage.save();
 
     console.log("Saved message:", savedMessage);
-
-    // Broadcast to specific room
     io.to(data.room).emit("receive_message", savedMessage);
     console.log("Emitted message to room:", data.room);
 
@@ -65,7 +63,7 @@ socket.on("submit_bid", (data) => {
 });
 });
 app.use(cors({
-  origin: 'http://localhost:3000',
+  origin: process.env.CLIENT_URL,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -81,7 +79,7 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   store: MongoStore.create({
-    mongoUrl: 'mongodb://127.0.0.1:27017/FinalProject',
+    mongoUrl: process.env.MONGO_URI,
     collectionName: 'sessions'
   }),
   cookie: {
@@ -98,7 +96,7 @@ app.use(passport.session());
 app.use(passport.initialize());
 app.use(passport.session());
 
-mongoose.connect("mongodb://127.0.0.1:27017/FinalProject")
+mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("Connected to Database"))
   .catch(console.error);
 
