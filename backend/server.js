@@ -143,9 +143,10 @@ app.get('/health', (req, res) => {
   res.status(200).send('OK');
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server and WebSocket listening on port ${PORT}`);
 });
+
 process.on('uncaughtException', (error) => {
   console.error('Uncaught Exception:', error);
 });
