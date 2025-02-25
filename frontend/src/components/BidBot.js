@@ -30,8 +30,6 @@ const BidBot = ({
   const [isBidBotActive, setIsBidBotActive] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
   const [isFirstBid, setIsFirstBid] = useState(true);
-  
-  // Use refs to persist values across renders
   const bidBotLimitRef = useRef(bidBotLimit);
   const bidIncrementRef = useRef(bidIncrement);
   const isBidBotActiveRef = useRef(isBidBotActive);
@@ -40,7 +38,6 @@ const BidBot = ({
   const currentBidRef = useRef(currentBid);
   const lastBidderIdRef = useRef(lastBidderId);
 
-  // Update refs when state or props change
   useEffect(() => {
     bidBotLimitRef.current = bidBotLimit;
     bidIncrementRef.current = bidIncrement;
@@ -55,25 +52,24 @@ const BidBot = ({
       isBidBotActiveRef.current && 
       !processingBidRef.current && 
       lastBidderId && 
-      lastBidderId !== userId &&  // Ensure bot only bids if user is NOT the last bidder
-      parseFloat(currentBidRef.current) < parseFloat(bidBotLimitRef.current) // Check if within bid limit
+      lastBidderId !== userId &&  
+      parseFloat(currentBidRef.current) < parseFloat(bidBotLimitRef.current) 
     ) {
-      const delay = Math.random() * 3000 + 1000; // Random delay between 1-4 seconds
+      const delay = Math.random() * 3000 + 1000; 
       setTimeout(() => {
-        handleAutomaticBid(currentBid, lastBidderId);
+        if (lastBidderIdRef.current !== userId) {
+          handleAutomaticBid(currentBidRef.current, lastBidderIdRef.current);
+        }
       }, delay);
     }
   }, [currentBid, lastBidderId]);
   
 
-  // Set up the socket listener for real-time updates
   useEffect(() => {
     if (!socket) return;
 
     const handleReceiveBid = (data) => {
       if (data.room === propertyId && data.userId !== userId && isBidBotActiveRef.current) {
-        // For socket events, we'll use them as a backup to ensure we don't miss any bids
-        // The main bidding is triggered by the prop changes above
         console.log("BidBot received socket bid update:", data);
       }
     };
@@ -81,14 +77,12 @@ const BidBot = ({
     // Add event listener
     socket.on("receive_bid", handleReceiveBid);
 
-    // Clean up event listener only on unmount
     return () => {
       socket.off("receive_bid", handleReceiveBid);
     };
   }, [propertyId, userId, socket]);
 
   const handleAutomaticBid = async (incomingBidAmount, incomingBidderId, retryCount = 0) => {
-    // Prevent concurrent bids
     if (processingBidRef.current) {
       return;
     }
@@ -96,7 +90,6 @@ const BidBot = ({
     processingBidRef.current = true;
     
     try {
-      // Don't place bid if we're already the highest bidder
       if (incomingBidderId === userId) {
         processingBidRef.current = false;
         return;
@@ -113,24 +106,20 @@ const BidBot = ({
       const limitNum = parseFloat(bidBotLimitRef.current);
       const incrementNum = parseFloat(bidIncrementRef.current);
 
-      // Calculate next bid amount
       let nextBidAmount;
       if (isFirstBidRef.current) {
-        // First bid uses the increment to round up
         nextBidAmount = Math.min(
           Math.ceil((currentBidNum + 1) / incrementNum) * incrementNum,
           limitNum
         );
         setIsFirstBid(false);
       } else {
-        // Subsequent bids just add the increment
         nextBidAmount = Math.min(
           currentBidNum + incrementNum,
           limitNum
         );
       }
 
-      // If this is a retry, increment the bid amount again
       if (retryCount > 0) {
         nextBidAmount = Math.min(
           nextBidAmount + (incrementNum * retryCount),
@@ -153,7 +142,6 @@ const BidBot = ({
           time: new Date().toISOString()
         };
 
-        // Submit bid to API
         const bidResponse = await fetch(`${process.env.REACT_APP_API_URL}/bids/newbid`, {
           method: 'POST',
           headers: {
@@ -164,15 +152,9 @@ const BidBot = ({
 
         if (!bidResponse.ok) {
           const errorData = await bidResponse.json();
-          
-          // Check if this is a duplicate bid error
-          if (errorData.message && errorData.message.includes("already exists")) {
+            if (errorData.message && errorData.message.includes("already exists")) {
             console.log("Duplicate bid detected, incrementing and retrying");
-            
-            // Release processing lock to allow retry
             processingBidRef.current = false;
-            
-            // Retry with an incremented amount
             return handleAutomaticBid(incomingBidAmount, incomingBidderId, retryCount + 1);
           }
           
@@ -180,8 +162,6 @@ const BidBot = ({
         }
 
         const newBid = await bidResponse.json();
-
-        // Update property with new bid
         const propertyUpdateResponse = await fetch(`${process.env.REACT_APP_API_URL}/property/${propertyId}/bid`, {
           method: 'PUT',
           headers: {
@@ -198,8 +178,6 @@ const BidBot = ({
         }
 
         const updatedProperty = await propertyUpdateResponse.json();
-
-        // Emit socket event for real-time updates
         socket.emit("submit_bid", { 
           bid: nextBidAmount, 
           room: propertyId, 
@@ -226,7 +204,6 @@ const BidBot = ({
         setIsBidBotActive(false);
       }
     } finally {
-      // Always clear the processing flag
       processingBidRef.current = false;
     }
   };
@@ -235,17 +212,14 @@ const BidBot = ({
     e && e.preventDefault();
     
     if (isBidBotActive) {
-      // Stop the bot if it's active
       setIsBidBotActive(false);
       setIsFirstBid(true);
     } else {
-      // Open dialog if it's inactive
       setOpenDialog(true);
     }
   };
 
   const startBidBot = async (e) => {
-    // Prevent default form submission behavior
     e && e.preventDefault();
     
     if (!socket || !socketConnected) {
@@ -286,7 +260,6 @@ const BidBot = ({
     setIsFirstBid(true);
     processingBidRef.current = false;
 
-    // If user is not currently winning, place first bid immediately
     if (lastBidderId && lastBidderId !== userId) {
       setTimeout(() => {
         handleAutomaticBid(currentBid, lastBidderId);
@@ -295,13 +268,30 @@ const BidBot = ({
   };
 
   const handleDialogClose = (e) => {
-    // Prevent default dialog close behavior
     e && e.preventDefault();
     setOpenDialog(false);
   };
-
-  // Check if user is currently winning
   const isUserWinning = lastBidderId === userId;
+
+  const textFieldStyle = {
+    '& .MuiOutlinedInput-root': {
+      '& fieldset': {
+        borderColor: 'secondary.main',
+      },
+      '&:hover fieldset': {
+        borderColor: 'secondary.main',
+      },
+      '&.Mui-focused fieldset': {
+        borderColor: 'secondary.main',
+      },
+    },
+    '& .MuiInputLabel-root': {
+      color: 'secondary.main', 
+    },
+    '& .MuiInputLabel-root.Mui-focused': {
+      color: 'secondary.main', 
+    }
+  };
 
   return (
     <Box>
@@ -358,7 +348,10 @@ const BidBot = ({
             value={bidBotLimit}
             onChange={(e) => setBidBotLimit(e.target.value)}
             helperText={`Current max approved amount: €${amountAllowed?.toLocaleString()}`}
-            sx={{ mb: 2 }}
+            sx={{ 
+              mb: 2,
+              ...textFieldStyle
+            }}
             inputProps={{ inputMode: 'text' }}
           />
           <TextField
@@ -369,14 +362,17 @@ const BidBot = ({
             onChange={(e) => setBidIncrement(e.target.value)}
             helperText="Amount to increase each bid by"
             inputProps={{ inputMode: 'text' }}
+            sx={textFieldStyle}
           />
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>
-            Current bid: €{parseFloat(currentBid).toLocaleString()}
-            {isUserWinning && " (You are the highest bidder)"}
-          </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleDialogClose} type="button">Cancel</Button>
+          <Button 
+            onClick={handleDialogClose} 
+            type="button"
+            sx={{ color: 'secondary.main' }}
+          >
+            Cancel
+          </Button>
           <Button 
             variant="contained" 
             color="secondary" 

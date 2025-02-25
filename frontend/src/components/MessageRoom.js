@@ -1,6 +1,6 @@
 import * as React from 'react';
-import { useState, useEffect } from 'react';
-import { Box, List, ListItem, ListItemAvatar, ListItemText, Avatar, Typography, TextField, Button } from '@mui/material';
+import { useState, useEffect, useRef } from 'react';
+import { Box, List, ListItem, ListItemAvatar, ListItemText, Avatar, Typography, TextField, Button, useTheme } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import io from 'socket.io-client';
@@ -8,6 +8,8 @@ import useUserData from '../utils/useUserData';
 
 export default function MessageContainer() {
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isDarkMode = theme.palette.mode === 'dark';
   const { _id: userId, name: userName } = useUserData();
   const [rooms, setRooms] = useState([]);
   const [selectedRoom, setSelectedRoom] = useState(null);
@@ -15,16 +17,13 @@ export default function MessageContainer() {
   const [loading, setLoading] = useState(true);
   const [socket, setSocket] = useState(null);
   const [newMessage, setNewMessage] = useState('');
-
-  // Initialize Socket Connection
+  const messagesRef = useRef(new Set());
   useEffect(() => {
     const newSocket = io(process.env.REACT_APP_SOCKET_URL);
     setSocket(newSocket);
 
     return () => newSocket.close();
   }, []);
-
-  // Fetch Rooms
   useEffect(() => {
     const fetchRooms = async () => {
       if (!userId) return;
@@ -55,13 +54,19 @@ export default function MessageContainer() {
     fetchRooms();
   }, [userId]);
 
-  // Fetch messages when room is selected
   useEffect(() => {
     if (selectedRoom) {
+      messagesRef.current = new Set();
+      
       const fetchRoomMessages = async () => {
         try {
           const messagesResponse = await axios.get(`${process.env.REACT_APP_API_URL}/messages/${selectedRoom._id}`);
-          setMessages(messagesResponse.data || []);
+          const fetchedMessages = messagesResponse.data || [];
+            fetchedMessages.forEach(msg => {
+            messagesRef.current.add(msg._id);
+          });
+          
+          setMessages(fetchedMessages);
         } catch (err) {
           console.error('Error fetching messages:', err);
           setMessages([]);
@@ -72,16 +77,32 @@ export default function MessageContainer() {
     }
   }, [selectedRoom]);
 
-  // Listen for new socket messages
   useEffect(() => {
     if (socket && selectedRoom) {
       socket.emit('join_room', selectedRoom._id);
   
       const handleNewMessage = (message) => {
         console.log('Received message:', message);
-        // Only add messages from other users to prevent duplicates
-        if (message.sentBy !== userId) {
-          setMessages(prevMessages => [...prevMessages, message]);
+        
+        if (!messagesRef.current.has(message._id)) {
+          messagesRef.current.add(message._id);
+            setMessages(prevMessages => {
+            const tempMessageIndex = prevMessages.findIndex(msg => 
+              msg.sentBy === message.sentBy && 
+              msg.message === message.message && 
+              msg._id.toString().startsWith('temp-')
+            );
+            
+            if (tempMessageIndex >= 0) {
+              const newMessages = [...prevMessages];
+              newMessages[tempMessageIndex] = message;
+              return newMessages;
+            } else {
+              return [...prevMessages, message];
+            }
+          });
+        } else {
+          console.log('Duplicate message detected and ignored:', message._id);
         }
       };
 
@@ -89,23 +110,21 @@ export default function MessageContainer() {
 
       return () => {
         socket.off('receive_message', handleNewMessage);
+        socket.emit('leave_room', selectedRoom._id);
       };
     }
-  }, [socket, selectedRoom, userId]);
+  }, [socket, selectedRoom]);
 
-  // Handle Room Selection
   const handleRoomSelect = (room) => {
     setSelectedRoom(room);
   };
 
-  // Handle Profile Navigation
   const handleProfileClick = () => {
     if (selectedRoom?.otherUserId) {
       navigate(`/profile/${selectedRoom.otherUserId}`);
     }
   };
 
-  // Send Message
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!newMessage.trim() || !selectedRoom || !socket) return;
@@ -117,20 +136,29 @@ export default function MessageContainer() {
         message: newMessage
       };
 
-      socket.emit('send_message', messageData);
-
-      // Optimistically add message to UI
-      const optimisticMessage = {
+      const tempId = `temp-${Date.now()}`;
+          const optimisticMessage = {
         ...messageData,
-        _id: `temp-${Date.now()}`,
+        _id: tempId,
         time: new Date().toISOString()
       };
+      messagesRef.current.add(tempId);
       
       setMessages(prevMessages => [...prevMessages, optimisticMessage]);
       setNewMessage('');
 
-      // Then save to database
-      await axios.post(`${process.env.REACT_APP_API_URL}/messages/`, messageData);
+      const response = await axios.post(`${process.env.REACT_APP_API_URL}/messages/`, messageData);
+      const savedMessage = response.data;
+      
+      messagesRef.current.delete(tempId);
+      messagesRef.current.add(savedMessage._id);
+      
+      setMessages(prevMessages => 
+        prevMessages.map(msg => 
+          msg._id === tempId ? savedMessage : msg
+        )
+      );
+      
     } catch (error) {
       console.error('Error sending message:', error);
     }
@@ -138,15 +166,18 @@ export default function MessageContainer() {
 
   if (loading) return <Typography>Loading...</Typography>;
 
+  const backgroundColor = isDarkMode ? theme.palette.background.default : 'white';
+  const borderColor = isDarkMode ? 'rgba(255, 255, 255, 0.12)' : '#ddd';
+
   return (
     <Box sx={{ display: 'flex', height: '100vh' }}>
-      {/* Room List */}
       <Box sx={{ 
         width: '300px', 
-        borderRight: '1px solid #ddd',
+        borderRight: `1px solid ${borderColor}`,
         overflowY: 'auto',
         display: 'flex',
-        flexDirection: 'column'
+        flexDirection: 'column',
+        bgcolor: backgroundColor
       }}>
         <List>
           {rooms.map((room) => (
@@ -154,7 +185,12 @@ export default function MessageContainer() {
               key={room._id} 
               onClick={() => handleRoomSelect(room)}
               selected={selectedRoom?._id === room._id}
-              sx={{ cursor: 'pointer' }}
+              sx={{ 
+                cursor: 'pointer',
+                bgcolor: selectedRoom?._id === room._id 
+                  ? (isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)') 
+                  : 'transparent'
+              }}
             >
               <ListItemAvatar>
                 <Avatar
@@ -172,26 +208,25 @@ export default function MessageContainer() {
         </List>
       </Box>
 
-      {/* Message View */}
       <Box sx={{ 
         flex: 1,
         display: 'grid',
         gridTemplateRows: 'auto 1fr auto',
         height: '100%',
-        overflow: 'hidden'
+        overflow: 'hidden',
+        bgcolor: backgroundColor
       }}>
         {selectedRoom ? (
           <>
-            {/* Header */}
             <Box 
               sx={{ 
                 padding: 2, 
-                borderBottom: '1px solid #ddd',
+                borderBottom: `1px solid ${borderColor}`,
                 display: 'flex',
                 alignItems: 'center',
                 gap: 2,
                 cursor: 'pointer',
-                backgroundColor: 'white'
+                bgcolor: backgroundColor
               }}
               onClick={handleProfileClick}
             >
@@ -220,72 +255,77 @@ export default function MessageContainer() {
               padding: 2,
               display: 'flex',
               flexDirection: 'column',
-              gap: 2
+              gap: 2,
+              bgcolor: isDarkMode ? theme.palette.background.paper : '#f7f7f7'
             }}>
-              {messages.map((message) => (
-                <Box 
-                  key={message._id}
-                  sx={{ 
-                    display: 'flex', 
-                    flexDirection: 'column',
-                    alignItems: message.sentBy === userId ? 'flex-end' : 'flex-start',
-                    maxWidth: '70%',
-                    alignSelf: message.sentBy === userId ? 'flex-end' : 'flex-start',
-                  }}
-                >
+              {messages.map((message) => {
+                const isCurrentUser = message.sentBy === userId;
+                return (
                   <Box 
+                    key={message._id}
                     sx={{ 
                       display: 'flex', 
-                      alignItems: 'center',
-                      flexDirection: message.sentBy === userId ? 'row-reverse' : 'row',
-                      maxWidth: '100%'
+                      flexDirection: 'column',
+                      alignItems: isCurrentUser ? 'flex-end' : 'flex-start',
+                      maxWidth: '70%',
+                      alignSelf: isCurrentUser ? 'flex-end' : 'flex-start',
                     }}
                   >
-                    <Box
+                    <Box 
                       sx={{ 
-                        backgroundColor: message.sentBy === userId ? '#e6f2ff' : '#f0f0f0',
-                        padding: '8px 12px',
-                        borderRadius: '12px',
-                        borderBottomRightRadius: message.sentBy === userId ? '4px' : '12px',
-                        borderBottomLeftRadius: message.sentBy === userId ? '12px' : '4px',
+                        display: 'flex', 
+                        alignItems: 'center',
+                        flexDirection: isCurrentUser ? 'row-reverse' : 'row',
                         maxWidth: '100%'
                       }}
                     >
-                      <Typography 
+                      <Box
                         sx={{ 
-                          wordWrap: 'break-word',
-                          overflowWrap: 'break-word',
-                          whiteSpace: 'pre-wrap',
+                          backgroundColor: isCurrentUser 
+                            ? (isDarkMode ? theme.palette.primary.dark : '#e6f2ff')
+                            : (isDarkMode ? theme.palette.grey[800] : '#f0f0f0'),
+                          color: isCurrentUser && isDarkMode ? 'white' : 'inherit',
+                          padding: '8px 12px',
+                          borderRadius: '12px',
+                          borderBottomRightRadius: isCurrentUser ? '4px' : '12px',
+                          borderBottomLeftRadius: isCurrentUser ? '12px' : '4px',
+                          maxWidth: '100%'
                         }}
                       >
-                        {message.message}
-                      </Typography>
+                        <Typography 
+                          sx={{ 
+                            wordWrap: 'break-word',
+                            overflowWrap: 'break-word',
+                            whiteSpace: 'pre-wrap',
+                          }}
+                        >
+                          {message.message}
+                        </Typography>
+                      </Box>
                     </Box>
+                    <Typography 
+                      variant="caption" 
+                      sx={{ 
+                        color: 'text.secondary',
+                        fontSize: '0.7rem',
+                        mt: 0.5,
+                        mx: 1
+                      }}
+                    >
+                      {new Date(message.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                    </Typography>
                   </Box>
-                  <Typography 
-                    variant="caption" 
-                    sx={{ 
-                      color: 'text.secondary',
-                      fontSize: '0.7rem',
-                      mt: 0.5,
-                      mx: 1
-                    }}
-                  >
-                    {new Date(message.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                  </Typography>
-                </Box>
-              ))}
+                );
+              })}
             </Box>
-
-            {/* Message Input */}
             <Box 
               component="form" 
               onSubmit={handleSendMessage} 
               sx={{ 
                 display: 'flex', 
                 padding: 2,
-                backgroundColor: 'white',
-                borderTop: '1px solid #ddd'
+                bgcolor: backgroundColor,
+                borderTop: `1px solid ${borderColor}`
               }}
             >
               <TextField
@@ -294,7 +334,26 @@ export default function MessageContainer() {
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
                 placeholder="Type a message"
-                sx={{ mr: 2 }}
+                sx={{ 
+                  mr: 2,
+                  '& .MuiOutlinedInput-root': {
+                    '& fieldset': {
+                      borderColor: 'secondary.main',
+                    },
+                    '&:hover fieldset': {
+                      borderColor: 'secondary.main',
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: 'secondary.main',
+                    },
+                  },
+                  '& .MuiInputLabel-root': {
+                    color: 'secondary.main',
+                  },
+                  '& .MuiInputLabel-root.Mui-focused': {
+                    color: 'secondary.main',
+                  }
+                }}
               />
               <Button type="submit" variant="contained" color="secondary">
                 Send
