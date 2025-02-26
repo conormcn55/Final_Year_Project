@@ -50,7 +50,7 @@ const StyledCardContent = styled(CardContent)({
 const StyledTextField = styled(TextField)(({ theme }) => ({
   '& .MuiInputBase-input': {
     fontSize: '1.1rem',
-    color: theme.palette.text.primary, // This will use the #123871 color
+    color: theme.palette.text.primary, 
   }
 }));
 
@@ -58,7 +58,7 @@ const NameTextField = styled(TextField)(({ theme }) => ({
   '& .MuiInputBase-input': {
     fontSize: '1.8rem',
     fontWeight: 'bold',
-    color: theme.palette.text.primary, // This will use the #123871 color
+    color: theme.palette.text.primary, 
   }
 }));
 
@@ -118,20 +118,26 @@ export default function UserInfo() {
   const handleDeleteFile = async (index) => {
     const fileToDelete = files[index];
     
-    if (fileToDelete._id && !fileToDelete.isNew) {
-      try {
+    try {
+     
+      if (fileToDelete._id && !fileToDelete.isNew) {
         const response = await axios.delete(
           `${process.env.REACT_APP_API_URL}/user/removefile/${userData._id}/files/${fileToDelete._id}`,
           { withCredentials: true }
         );
+        
         if (response.status === 200) {
-          setFiles(prevFiles => prevFiles.filter((_, i) => i !== index));
+          console.log('File deleted successfully from server');
+        } else {
+          throw new Error('Failed to delete file from server');
         }
-      } catch (error) {
-        console.error('Error deleting file:', error);
       }
-    } else {
+      
       setFiles(prevFiles => prevFiles.filter((_, i) => i !== index));
+      
+    } catch (error) {
+      console.error('Error deleting file:', error);
+      alert('Failed to delete file. Please try again later.');
     }
   };
 

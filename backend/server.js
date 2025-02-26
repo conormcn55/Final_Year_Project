@@ -8,14 +8,11 @@ const routes = require('./api/routes');
 const path = require('path');
 require('dotenv').config();
 const Message = require('./models/messages');
-
 const app = express();
 const http = require("http");
 const { Server } = require("socket.io");
 const PORT = process.env.PORT || 3001;
 const server = http.createServer(app);
-
-// Updated Socket.io configuration with exact origin
 const io = new Server(server, {
   cors: {
     origin: process.env.CLIENT_URL,
@@ -39,16 +36,13 @@ io.on("connection", (socket) => {
   socket.on("send_message", async (data) => {
     try {
       console.log("Received message data:", data);
-      
       const newMessage = new Message({
         sentBy: data.sentBy,
         room: data.room,
         message: data.message,
         time: new Date()
       });
-      
       const savedMessage = await newMessage.save();
-      
       console.log("Saved message:", savedMessage);
       io.to(data.room).emit("receive_message", savedMessage);
       console.log("Emitted message to room:", data.room);
@@ -91,6 +85,7 @@ app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
 app.set('trust proxy', 1);
+
 app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: false,
@@ -103,8 +98,7 @@ app.use(session({
     maxAge: 24 * 60 * 60 * 1000,
     httpOnly: true,
     secure: true,
-    sameSite: 'none',
-    path: '/'
+    sameSite: 'none'
   }
 }));
 
@@ -119,7 +113,6 @@ app.use('/', routes);
 
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../client/build')));
-  
   app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '../client/build', 'index.html'));
   });
