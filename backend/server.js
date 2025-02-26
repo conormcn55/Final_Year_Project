@@ -15,15 +15,16 @@ const { Server } = require("socket.io");
 const PORT = process.env.PORT || 3001;
 const server = http.createServer(app);
 
+// Updated Socket.io configuration with exact origin
 const io = new Server(server, {
   cors: {
-    origin: process.env.CLIENT_URL ,
+    origin: process.env.CLIENT_URL,
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization']
   },
   transports: ['websocket', 'polling'],
-  pingTimeout: 60000, 
+  pingTimeout: 60000,
   maxHttpBufferSize: 1e8
 });
 
@@ -95,17 +96,18 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   store: MongoStore.create({
-      mongoUrl: process.env.MONGO_URI,
-      collectionName: 'sessions'
+    mongoUrl: process.env.MONGO_URI,
+    collectionName: 'sessions'
   }),
   cookie: {
-      maxAge: 24 * 60 * 60 * 1000,
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', 
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      domain: process.env.NODE_ENV === 'production' ? process.env.COOKIE_DOMAIN : undefined
+    maxAge: 24 * 60 * 60 * 1000,
+    httpOnly: true,
+    secure: true,
+    sameSite: 'none',
+    path: '/'
   }
 }));
+
 app.use(passport.initialize());
 app.use(passport.session());
 
@@ -122,6 +124,7 @@ if (process.env.NODE_ENV === 'production') {
     res.sendFile(path.join(__dirname, '../client/build', 'index.html'));
   });
 }
+
 app.get('/health', (req, res) => {
   res.status(200).send('OK');
 });
