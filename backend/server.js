@@ -17,7 +17,7 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: process.env.CLIENT_URL || "https://your-render-app.onrender.com",
+    origin: process.env.CLIENT_URL ,
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization']
@@ -86,24 +86,24 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Body parser middleware
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
+app.set('trust proxy', 1);
 app.use(session({
-  secret: process.env.SESSION_SECRET,
-  resave: false,
-  saveUninitialized: false,
-  store: MongoStore.create({
-    mongoUrl: process.env.MONGO_URI,
-    collectionName: 'sessions'
-  }),
-  cookie: {
-    maxAge: 24 * 60 * 60 * 1000,
-    httpOnly: true,
-    secure: true, 
-    sameSite: 'none'  
-  }
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    store: MongoStore.create({
+        mongoUrl: process.env.MONGO_URI,
+        collectionName: 'sessions'
+    }),
+    cookie: {
+        maxAge: 24 * 60 * 60 * 1000,
+        httpOnly: true,
+        secure: true, 
+        sameSite: 'none'  
+    }
 }));
 
 app.use(passport.initialize());
