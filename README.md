@@ -1,2 +1,2 @@
 # FinalYearProject
-#By Conor McNulty
+By Conor McNulty
