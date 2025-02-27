@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Box, Typography, TextField, Button, Card, CardContent, Divider, CircularProgress } from '@mui/material';
+import { Box, Typography, TextField, Button, Card, CardContent, CircularProgress } from '@mui/material';
 import { CalendarToday } from '@mui/icons-material';
 import DOMPurify from 'dompurify';
 import io from 'socket.io-client';
@@ -104,7 +104,6 @@ export default function Bid() {
         setSocketConnected(true);
         setError("");
         
-        // Join auction room
         socketInstance.emit("join_room", id);
         console.log(`Joined auction room: ${id}`);
       });
