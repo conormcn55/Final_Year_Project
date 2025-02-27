@@ -18,21 +18,219 @@ const ApprovalList = () => {
   
   useEffect(() => {
     if (userId) {
+      const fetchData = async () => {
+        try {
+          setLoading(true);
+          const { data: requestsData } = await axios.get(`${process.env.REACT_APP_API_URL}/request/approver/${userId}`);
+          const pendingRequests = requestsData.requests.filter(request => request.approved === false);
+          console.log('Pending requests found:', pendingRequests.length);
+          setRequests(pendingRequests);
+
+          if (pendingRequests.length > 0) {
+            const requestersData = await Promise.all(
+              pendingRequests.map(async (request) => {
+                try {
+                  const { data } = await axios.get(`${process.env.REACT_APP_API_URL}/user/basic/${request.requesterId}`);
+                  return { [request.requesterId]: data };
+                } catch (err) {
+                  console.error(`Error fetching requester ${request.requesterId}:`, err);
+                  return { [request.requesterId]: { user: { name: 'Unknown User' } } };
+                }
+              })
+            );
+            setRequesters(Object.assign({}, ...requestersData));
+
+            const propertiesData = await Promise.all(
+              pendingRequests.map(async (request) => {
+                try {
+                  const { data } = await axios.get(`${process.env.REACT_APP_API_URL}/property/${request.propertyId}`);
+                  return { [request.propertyId]: data };
+                } catch (err) {
+                  console.error(`Error fetching property ${request.propertyId}:`, err);
+                  return { [request.propertyId]: { address: { addressLine1: 'Unknown', addressTown: '', addressCounty: '' } } };
+                }
+              })
+            );
+            setProperties(Object.assign({}, ...propertiesData));
+          }
+
+          setError(null);
+        } catch (err) {
+          setError('Failed to load approval requests');
+          console.error('Error fetching Requests:', err);
+        } finally {
+          setLoading(false);
+        }
+      };
+
       fetchData();
     }
   }, [userId]);
+
+  const handleAmountChange = (request, newAmount) => {
+    const updatedRequests = requests.map(req => 
+      req._id === request._id 
+        ? { ...req, amountAllowed: newAmount } 
+        : req
+    );
+    setRequests(updatedRequests);
+  };
+
+  const handleApprove = async (request) => {
+    setActionInProgress(request._id);
+    try {
+      await axios.put(`${process.env.REACT_APP_API_URL}/request/edit/${request._id}`, {
+        amountAllowed: request.amountAllowed,
+        approved: true
+      });
+      setSnackbar({
+        open: true,
+        message: 'Request approved successfully',
+        severity: 'success'
+      });
+      
+      const fetchData = async () => {
+        try {
+          setLoading(true);
+          const { data: requestsData } = await axios.get(`${process.env.REACT_APP_API_URL}/request/approver/${userId}`);
+          
+          const pendingRequests = requestsData.requests.filter(request => request.approved === false);
+          console.log('Pending requests found:', pendingRequests.length);
+          setRequests(pendingRequests);
+
+          if (pendingRequests.length > 0) {
+            const requestersData = await Promise.all(
+              pendingRequests.map(async (request) => {
+                try {
+                  const { data } = await axios.get(`${process.env.REACT_APP_API_URL}/user/basic/${request.requesterId}`);
+                  return { [request.requesterId]: data };
+                } catch (err) {
+                  console.error(`Error fetching requester ${request.requesterId}:`, err);
+                  return { [request.requesterId]: { user: { name: 'Unknown User' } } };
+                }
+              })
+            );
+            setRequesters(Object.assign({}, ...requestersData));
+
+            const propertiesData = await Promise.all(
+              pendingRequests.map(async (request) => {
+                try {
+                  const { data } = await axios.get(`${process.env.REACT_APP_API_URL}/property/${request.propertyId}`);
+                  return { [request.propertyId]: data };
+                } catch (err) {
+                  console.error(`Error fetching property ${request.propertyId}:`, err);
+                  return { [request.propertyId]: { address: { addressLine1: 'Unknown', addressTown: '', addressCounty: '' } } };
+                }
+              })
+            );
+            setProperties(Object.assign({}, ...propertiesData));
+          }
+
+          setError(null);
+        } catch (err) {
+          setError('Failed to load approval requests');
+          console.error('Error fetching Requests:', err);
+        } finally {
+          setLoading(false);
+        }
+      };
+      
+      await fetchData();
+    } catch (err) {
+      setSnackbar({
+        open: true,
+        message: 'Failed to approve request',
+        severity: 'error'
+      });
+      console.error('Error approving request:', err);
+    } finally {
+      setActionInProgress(null);
+    }
+  };
+
+  const handleDecline = async (request) => {
+    setActionInProgress(request._id);
+    try {
+      await axios.delete(`${process.env.REACT_APP_API_URL}/request/${request._id}`);
+      setSnackbar({
+        open: true,
+        message: 'Request declined successfully',
+        severity: 'success'
+      });
+      
+      const fetchData = async () => {
+        try {
+          setLoading(true);
+          const { data: requestsData } = await axios.get(`${process.env.REACT_APP_API_URL}/request/approver/${userId}`);
+          
+          const pendingRequests = requestsData.requests.filter(request => request.approved === false);
+          console.log('Pending requests found:', pendingRequests.length);
+          setRequests(pendingRequests);
+
+          if (pendingRequests.length > 0) {
+            const requestersData = await Promise.all(
+              pendingRequests.map(async (request) => {
+                try {
+                  const { data } = await axios.get(`${process.env.REACT_APP_API_URL}/user/basic/${request.requesterId}`);
+                  return { [request.requesterId]: data };
+                } catch (err) {
+                  console.error(`Error fetching requester ${request.requesterId}:`, err);
+                  return { [request.requesterId]: { user: { name: 'Unknown User' } } };
+                }
+              })
+            );
+            setRequesters(Object.assign({}, ...requestersData));
+
+            const propertiesData = await Promise.all(
+              pendingRequests.map(async (request) => {
+                try {
+                  const { data } = await axios.get(`${process.env.REACT_APP_API_URL}/property/${request.propertyId}`);
+                  return { [request.propertyId]: data };
+                } catch (err) {
+                  console.error(`Error fetching property ${request.propertyId}:`, err);
+                  return { [request.propertyId]: { address: { addressLine1: 'Unknown', addressTown: '', addressCounty: '' } } };
+                }
+              })
+            );
+            setProperties(Object.assign({}, ...propertiesData));
+          }
+
+          setError(null);
+        } catch (err) {
+          setError('Failed to load approval requests');
+          console.error('Error fetching Requests:', err);
+        } finally {
+          setLoading(false);
+        }
+      };
+      
+      await fetchData();
+    } catch (err) {
+      setSnackbar({
+        open: true,
+        message: 'Failed to decline request',
+        severity: 'error'
+      });
+      console.error('Error declining request:', err);
+    } finally {
+      setActionInProgress(null);
+    }
+  };
+
+  const handleCloseSnackbar = (event, reason) => {
+    if (reason === 'clickaway') return;
+    setSnackbar({ ...snackbar, open: false });
+  };
 
   const fetchData = async () => {
     try {
       setLoading(true);
       const { data: requestsData } = await axios.get(`${process.env.REACT_APP_API_URL}/request/approver/${userId}`);
       
-      // Filter for unapproved requests only
       const pendingRequests = requestsData.requests.filter(request => request.approved === false);
       console.log('Pending requests found:', pendingRequests.length);
       setRequests(pendingRequests);
 
-      // Only fetch user and property data for pending requests to improve performance
       if (pendingRequests.length > 0) {
         const requestersData = await Promise.all(
           pendingRequests.map(async (request) => {
@@ -68,67 +266,6 @@ const ApprovalList = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleAmountChange = (request, newAmount) => {
-    const updatedRequests = requests.map(req => 
-      req._id === request._id 
-        ? { ...req, amountAllowed: newAmount } 
-        : req
-    );
-    setRequests(updatedRequests);
-  };
-
-  const handleApprove = async (request) => {
-    setActionInProgress(request._id);
-    try {
-      await axios.put(`${process.env.REACT_APP_API_URL}/request/edit/${request._id}`, {
-        amountAllowed: request.amountAllowed,
-        approved: true
-      });
-      setSnackbar({
-        open: true,
-        message: 'Request approved successfully',
-        severity: 'success'
-      });
-      await fetchData();
-    } catch (err) {
-      setSnackbar({
-        open: true,
-        message: 'Failed to approve request',
-        severity: 'error'
-      });
-      console.error('Error approving request:', err);
-    } finally {
-      setActionInProgress(null);
-    }
-  };
-
-  const handleDecline = async (request) => {
-    setActionInProgress(request._id);
-    try {
-      await axios.delete(`${process.env.REACT_APP_API_URL}/request/${request._id}`);
-      setSnackbar({
-        open: true,
-        message: 'Request declined successfully',
-        severity: 'success'
-      });
-      await fetchData();
-    } catch (err) {
-      setSnackbar({
-        open: true,
-        message: 'Failed to decline request',
-        severity: 'error'
-      });
-      console.error('Error declining request:', err);
-    } finally {
-      setActionInProgress(null);
-    }
-  };
-
-  const handleCloseSnackbar = (event, reason) => {
-    if (reason === 'clickaway') return;
-    setSnackbar({ ...snackbar, open: false });
   };
 
   if (loading) {

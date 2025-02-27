@@ -2,9 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box, TextField, Autocomplete, InputAdornment, MenuItem, Typography,
-  Popover, IconButton, Stack, Paper, Button, Grid, Container, 
-  ToggleButtonGroup, ToggleButton, useTheme
-} from '@mui/material';
+  Popover, IconButton, Stack, Button, ToggleButtonGroup, ToggleButton, useTheme} from '@mui/material';
 import { LocationOn as LocationOnIcon, FilterAlt as FilterAltIcon } from '@mui/icons-material';
 import { debounce } from '@mui/material/utils';
 import propertyType from './propertyType';
@@ -14,7 +12,6 @@ import dialogPolyfill from 'dialog-polyfill';
   
 const GOOGLE_MAPS_API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
 
-// Add polyfill setup
 const setupDialogPolyfill = () => {
   if (typeof HTMLDialogElement === 'undefined') {
     window.HTMLDialogElement = class HTMLDialogElement extends HTMLElement {};
