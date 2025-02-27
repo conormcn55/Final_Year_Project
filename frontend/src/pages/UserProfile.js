@@ -9,15 +9,27 @@ const UserProfile = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    console.log("Profile component mounted, URL:", window.location.href);
+    
     const fetchUserData = async () => {
+      console.log("Fetching user data...");
       try {
-        const response = await fetch(`${process.env.REACT_APP_API_URL}/user/me`, {
+        const apiUrl = `${process.env.REACT_APP_API_URL}/user/me`;
+        console.log("API URL:", apiUrl);
+        
+        const response = await fetch(apiUrl, {
           credentials: 'include',
         });
-
+        
+        console.log("Response status:", response.status);
+        console.log("Response headers:", [...response.headers].map(h => `${h[0]}: ${h[1]}`).join(', '));
+        
         if (response.ok) {
+          const userData = await response.json();
+          console.log("User data:", userData);
           setIsAuthenticated(true);
         } else {
+          console.log("Not authenticated, redirecting");
           navigate('/');
         }
       } catch (error) {
@@ -27,10 +39,9 @@ const UserProfile = () => {
         setLoading(false);
       }
     };
-
+    
     fetchUserData();
   }, [navigate]);
-
   if (loading) {
     return (
       <Box
