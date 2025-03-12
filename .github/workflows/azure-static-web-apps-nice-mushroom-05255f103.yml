@@ -39,7 +39,7 @@ jobs:
           CI: false
           REACT_APP_API_URL: https://bidbudbackend-dwfuh3bgd5bae8h0.germanywestcentral-01.azurewebsites.net/api
           REACT_APP_SOCKET_URL: https://bidbudbackend-dwfuh3bgd5bae8h0.germanywestcentral-01.azurewebsites.net
-          REACT_APP_GOOGLE_MAPS_API_KEY: 'AIzaSyB0rv1dRFVC0etIzI8JJ31u51Hc2i_DFY'
+          REACT_APP_GOOGLE_MAPS_API_KEY: 'AIzaSyB0rv1dRFVC0etIzJ8JJ3S1u51Hc2i_DFY'
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_NICE_MUSHROOM_05255F103 }}
           action: "upload"
