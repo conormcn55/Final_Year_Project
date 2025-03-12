@@ -99,7 +99,7 @@ app.use(session({
   cookie: {
     maxAge: 24 * 60 * 60 * 1000,
     httpOnly: true,
-    secure: !isLocalhost, // Only require HTTPS when not on localhost
+    secure: !isLocalhost, 
     sameSite: isLocalhost ? 'lax' : 'none'
   }
 }));
