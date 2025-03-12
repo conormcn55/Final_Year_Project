@@ -86,6 +86,8 @@ app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
 app.set('trust proxy', 1);
 
+const isLocalhost = process.env.CLIENT_URL.includes('localhost');
+
 app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: false,
@@ -97,11 +99,10 @@ app.use(session({
   cookie: {
     maxAge: 24 * 60 * 60 * 1000,
     httpOnly: true,
-    secure: true,
-    sameSite: 'none'
+    secure: !isLocalhost, // Only require HTTPS when not on localhost
+    sameSite: isLocalhost ? 'lax' : 'none'
   }
 }));
-
 app.use(passport.initialize());
 app.use(passport.session());
 
@@ -124,6 +125,9 @@ app.get('/health', (req, res) => {
 
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server and WebSocket listening on port ${PORT}`);
+  console.log('Google Client ID:', process.env.GOOGLECLIENTID);
+console.log('Google URL:', process.env.GOOGLEURL);
+console.log('NODE_ENV:', process.env.NODE_ENV);
 });
 
 process.on('uncaughtException', (error) => {

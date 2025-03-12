@@ -163,7 +163,6 @@ export default function Bid() {
     };
   }, [id, refreshBidHistory]);
 
-  // Initial property data load
   useEffect(() => {
     const fetchPropertyInfo = async () => {
       try {
@@ -208,7 +207,6 @@ export default function Bid() {
     fetchPropertyInfo();
   }, [id, userId, refreshBidHistory]);
 
-  // Countdown timer
   useEffect(() => {
     const updateCountdown = () => {
       if (saleDate) {
@@ -244,23 +242,17 @@ export default function Bid() {
     return () => clearInterval(timer);
   }, [saleDate, id]);
 
-  // Function to parse various bid formats
   const parseBidAmount = (bidInput) => {
     if (!bidInput) return 0;
     
-    // Remove euro symbol if present
     let cleanBid = bidInput.toString().replace(/€/g, '');
     
-    // Remove commas and spaces
     cleanBid = cleanBid.replace(/,/g, '').replace(/\s/g, '');
     
-    // Convert to number
     return parseFloat(cleanBid);
   };
 
-  // Submit bid function
   const submitBid = async (event) => {
-    // Prevent default form submission behavior
     if (event) event.preventDefault();
     
     try {
