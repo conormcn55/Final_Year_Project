@@ -25,6 +25,9 @@ import {
   Favorite
 } from '@mui/icons-material';
 
+/**
+ * Formats the address object into a single readable string
+ */
 const formatAddress = (address) => {
   const parts = [
     address.addressLine1,
@@ -32,21 +35,28 @@ const formatAddress = (address) => {
     address.addressLine3,
     address.addressTown,
     address.addressCounty,
-    address.addressEirecode
+    address.addressEircode
   ].filter(part => part && part.length > 0);
   
   return parts.join(', ');
 };
 
+/**
+ * Image carousel component for displaying property images
+ */
 const ImageCarousel = ({ images }) => {
+  // Track the currently displayed image
   const [activeStep, setActiveStep] = useState(0);
+  // Track whether to show navigation controls
   const [showControls, setShowControls] = useState(false);
   const maxSteps = images.length;
 
+  // Move to the next image in carousel
   const handleNext = () => {
     setActiveStep((prevStep) => (prevStep + 1) % maxSteps);
   };
 
+  // Move to the previous image in carousel
   const handleBack = () => {
     setActiveStep((prevStep) => (prevStep - 1 + maxSteps) % maxSteps);
   };
@@ -60,6 +70,7 @@ const ImageCarousel = ({ images }) => {
       onMouseEnter={() => setShowControls(true)}
       onMouseLeave={() => setShowControls(false)}
     >
+      {/* Main image display */}
       <Box
         component="img"
         sx={{
@@ -73,6 +84,7 @@ const ImageCarousel = ({ images }) => {
         alt={`Property image ${activeStep + 1}`}
       />
       
+      {/* Previous image button - fades in on hover */}
       <Fade in={showControls}>
         <IconButton
           onClick={handleBack}
@@ -95,6 +107,7 @@ const ImageCarousel = ({ images }) => {
         </IconButton>
       </Fade>
 
+      {/* Next image button - fades in on hover */}
       <Fade in={showControls}>
         <IconButton
           onClick={handleNext}
@@ -117,6 +130,7 @@ const ImageCarousel = ({ images }) => {
         </IconButton>
       </Fade>
 
+      {/* Image navigation dots */}
       <Box
         sx={{
           position: 'absolute',
@@ -144,17 +158,25 @@ const ImageCarousel = ({ images }) => {
   );
 };
 
+/**
+ * Main PropertyInfo component for displaying details of a single property
+ */
 const PropertyInfo = () => {
+  // Get property ID from URL parameters
   const { id } = useParams();
   const navigate = useNavigate();
+  // Get current user data
   const userData = useUserData();
   const userId = userData?._id;
+  
+  // Component state
   const [property, setProperty] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showFullDescription, setShowFullDescription] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
 
+  // Fetch property data and favorite status on component mount or when ID/user changes
   useEffect(() => {
     const fetchProperty = async () => {
       try {
@@ -163,6 +185,7 @@ const PropertyInfo = () => {
         console.log('API URL:', process.env.REACT_APP_API_URL);
         console.log('Property ID:', id);
         
+        // Fetch property details from API
         const propertyUrl = `${process.env.REACT_APP_API_URL}/property/${id}`;
         console.log('Fetching from:', propertyUrl);
         
@@ -180,6 +203,7 @@ const PropertyInfo = () => {
           const favoritesResponse = await axios.get(favoritesUrl);
           console.log('Favorites response:', favoritesResponse);
           
+          // Check if this property is in user's favorites
           const isFavourited = favoritesResponse.data.favourites.some(
             fav => fav.property === id
           );
@@ -195,11 +219,16 @@ const PropertyInfo = () => {
 
     fetchProperty();
   }, [id, userId]);
+
+  /**
+   * Toggle favorite status for the current property
+   */
   const toggleFavorite = async () => {
     if (!userId) return;
     
     try {
       if (isFavorite) {
+        // Remove from favorites
         await axios.delete(`${process.env.REACT_APP_API_URL}/favourites/unfavourite`, { 
           data: { 
             user: userId, 
@@ -207,21 +236,27 @@ const PropertyInfo = () => {
           } 
         });
       } else {
+        // Add to favorites
         await axios.post(`${process.env.REACT_APP_API_URL}/favourites/`, { 
           user: userId, 
           property: id 
         });
       }
+      // Update UI state
       setIsFavorite(!isFavorite);
     } catch (err) {
       console.error('Error toggling favorite:', err);
     }
   };
 
+  // Loading state
   if (loading) return <Typography sx={{ p: 2 }}>Loading...</Typography>;
+  // Error state
   if (error) return <Typography color="error" sx={{ p: 2 }}>{error}</Typography>;
+  // No data state
   if (!property) return null;
 
+  // Destructure property data for easier access
   const { 
     address, 
     bathrooms, 
@@ -235,6 +270,7 @@ const PropertyInfo = () => {
 
   return (
     <Box sx={{ py: 4 }}>
+      {/* Header with back button and favorite toggle */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <IconButton onClick={() => navigate(-1)}>
           <ArrowBack />
@@ -247,10 +283,12 @@ const PropertyInfo = () => {
         )}
       </Box>
 
+      {/* Property address */}
       <Typography variant="h4" component="h1" gutterBottom>
         {formatAddress(address)}
       </Typography>
 
+      {/* Property lister information */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
         <Person color="action" />
         <Typography variant="subtitle1" color="text.secondary">
@@ -270,10 +308,12 @@ const PropertyInfo = () => {
         </Typography>
       </Box>
 
+      {/* Image carousel */}
       <Paper elevation={2}>
         <ImageCarousel images={images || []} />
       </Paper>
       
+      {/* Property features grid */}
       <Grid container spacing={2} sx={{ mt: 3 }}>
         <Grid item xs={6} sm={3}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -301,6 +341,7 @@ const PropertyInfo = () => {
         </Grid>
       </Grid>
 
+      {/* Property description with expandable text */}
       <Paper sx={{ mt: 3, p: 3 }}>
         <Typography variant="h6" gutterBottom>
           Description

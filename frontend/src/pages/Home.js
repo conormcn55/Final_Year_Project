@@ -1,31 +1,33 @@
-import React from 'react';
-import { Box } from '@mui/material';
-import SearchBar from '../utils/SearchBar';
-import RecentlyListed from '../components/cards/RecentlyListed';
-import EndingSoon from '../components/cards/EndingSoon';
-import InfoBar from '../components/InfoBar';
+import React from 'react'; // Import React
+import { Box } from '@mui/material'; // Import Box component from Material UI
+import SearchBar from '../utils/SearchBar'; // Import SearchBar component
+import RecentlyListed from '../components/cards/RecentlyListed'; // Import RecentlyListed component
+import EndingSoon from '../components/cards/EndingSoon'; // Import EndingSoon component
+import InfoBar from '../components/InfoBar'; // Import InfoBar component
 
+// Define the Home functional component, serves as the main landing page
 const Home = () => {
-    return (
-        <Box>
-            <SearchBar soldStatus="false" title="Find Your New Property" />
-            <InfoBar />
-            <Box
-                sx={{
-                    display: 'flex',
-                    flexDirection: { xs: 'column', md: 'row' },
-                    gap: 2,
-                }}
-            >
-                <Box sx={{ flex: 1 }}>
-                    <RecentlyListed />
-                </Box>
-                <Box sx={{ flex: 1 }}>
-                    <EndingSoon />
-                </Box>
-            </Box>
-        </Box>
-    );
+   return (
+       <Box> {/* Main container */}
+           <SearchBar soldStatus="false" title="Find Your New Property" /> {/* Search bar for available properties */}
+           <InfoBar /> {/* Information bar component */}
+           <Box
+               sx={{
+                   display: 'flex', 
+                   flexDirection: { xs: 'column', md: 'row' }, // Column layout on small screens, row on medium and up
+                   gap: 2, 
+               }}
+           >
+               <Box sx={{ flex: 1 }}> {/* Left column/section  */}
+                   <RecentlyListed /> {/* Component showing recently listed properties */}
+               </Box>
+               <Box sx={{ flex: 1 }}> {/* Right column/section  */}
+                   <EndingSoon /> {/* Component showing auctions ending soon */}
+               </Box>
+           </Box>
+       </Box>
+   );
 };
 
+// Export the Home component
 export default Home;

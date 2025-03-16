@@ -20,6 +20,7 @@ import Tooltip from "@mui/material/Tooltip";
 import MenuItem from "@mui/material/MenuItem";
 import DarkModeIcon from '@mui/icons-material/DarkMode';
 import LightModeIcon from '@mui/icons-material/LightMode';
+// Page components
 import Home from "../pages/Home";
 import CreateListing from "../pages/CreateListing";
 import UserProfile from "../pages/UserProfile";
@@ -31,14 +32,19 @@ import MessagesPage from "../pages/MessagesPage";
 import FavouritesPage from "../pages/FavouritesPage";
 import Approval from "../pages/Approval";
 import MyListings from "../pages/MyListings";
+// Custom hooks and assets
 import useUserData from '../utils/useUserData';
 import logo from '../images/logo.png';
 
+/**
+ * ProtectedRoute component - Manages route access based on user roles
+ */
 const ProtectedRoute = ({ element: Element, allowedRoles }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isAllowed, setIsAllowed] = useState(false);
   const userData = useUserData();
 
+  // Check user authorization when userData changes
   useEffect(() => {
     if (userData.userType) {
       setIsAllowed(allowedRoles.includes(userData.userType));
@@ -46,21 +52,32 @@ const ProtectedRoute = ({ element: Element, allowedRoles }) => {
     }
   }, [userData.userType, allowedRoles]);
 
+  // Show loading state while checking permissions
   if (isLoading) {
     return <div>Loading...</div>; 
   }
 
+  // Either render the protected component or redirect to home
   return isAllowed ? Element : <Navigate to="/" replace />;
 };
 
+/**
+ * NavBar component - Main navigation and routing for the application
+ */
 export default function NavBar({ onThemeToggle, isDark }) {
+  // State for user dropdown menu
   const [anchorElUser, setAnchorElUser] = React.useState(null);
+  
+  // Get user data from custom hook
   const userData = useUserData();
   const navigate = useNavigate();
+  
+  // Determine user type for conditional rendering
   const isAgent = userData.userType === 'estate agent';
   const isLandlord = userData.userType === 'landlord';
   const canCreateListing = isAgent || isLandlord;
 
+  // Event handlers for user dropdown menu
   const handleOpenUserMenu = (event) => {
     setAnchorElUser(event.currentTarget);
   };
@@ -69,7 +86,11 @@ export default function NavBar({ onThemeToggle, isDark }) {
     setAnchorElUser(null);
   };
 
+  /**
+   * Get menu items based on user role
+   */
   const getMenuItems = () => {
+    // Menu items available to all logged-in users
     const baseItems = [
       { label: "Profile", path: "/profile" },
       { label: "Houses Sold", path: "/housessold" },
@@ -77,32 +98,39 @@ export default function NavBar({ onThemeToggle, isDark }) {
       { label: "My Favourites", path: "/favourites" },
     ];
 
+    // Additional menu items for agents and landlords
     const agentLandlordItems = [
       { label: "Create Listing", path: "/createlisting" },
       { label: "My Listings", path: "/mylistings" },
       { label: "Bidding Requests", path: "/approval" },
     ];
 
+    // Combine the items based on user role
     return canCreateListing ? [...baseItems, ...agentLandlordItems] : baseItems;
   };
 
+  // Navigate to selected menu item and close menu
   const handleMenuClick = (path) => {
     handleCloseUserMenu();
     navigate(path);
   };
 
+  // Handle user sign out
   const handleSignOut = async () => {
     try {
+      // Call logout API endpoint
       await fetch(`${process.env.REACT_APP_API_URL}/user/logout`, {
         method: 'GET',
         credentials: 'include'
       });
+      // Redirect to home page after logout
       window.location.href = '/';
     } catch (error) {
       console.error('Logout failed:', error);
     }
   };
 
+  // Handle theme toggle and close menu
   const handleThemeToggle = () => {
     onThemeToggle();
     handleCloseUserMenu();
@@ -110,6 +138,7 @@ export default function NavBar({ onThemeToggle, isDark }) {
 
   return (
     <>
+      {/* App bar with navigation controls */}
       <AppBar 
         position="static" 
         elevation={0}
@@ -121,6 +150,7 @@ export default function NavBar({ onThemeToggle, isDark }) {
       >
         <Container maxWidth="xl">
           <Toolbar disableGutters>
+            {/* App logo */}
             <img 
               src={logo}
               alt="Logo"
@@ -129,6 +159,7 @@ export default function NavBar({ onThemeToggle, isDark }) {
                 height: "32px" 
               }}
             />
+            {/* App name/title with link to home */}
             <Typography
               variant="h6"
               noWrap
@@ -146,8 +177,10 @@ export default function NavBar({ onThemeToggle, isDark }) {
               Bid Bud
             </Typography>
 
+            {/* User menu section */}
             <Box sx={{ flexGrow: 0 }}>
               {userData._id ? (
+                // Show avatar and settings menu for logged-in users
                 <Tooltip title="Open settings">
                   <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
                     <Avatar
@@ -157,6 +190,7 @@ export default function NavBar({ onThemeToggle, isDark }) {
                   </IconButton>
                 </Tooltip>
               ) : (
+                // Show sign-in button for logged-out users
                 <Button
                   variant="contained"
                   color="primary"
@@ -166,6 +200,7 @@ export default function NavBar({ onThemeToggle, isDark }) {
                   Sign In
                 </Button>
               )}
+              {/* Dropdown menu for user settings */}
               <Menu
                 sx={{ mt: "45px" }}
                 id="menu-appbar"
@@ -182,17 +217,20 @@ export default function NavBar({ onThemeToggle, isDark }) {
                 open={Boolean(anchorElUser)}
                 onClose={handleCloseUserMenu}
               >
+                {/* Dynamic menu items based on user role */}
                 {getMenuItems().map((item) => (
                   <MenuItem key={item.label} onClick={() => handleMenuClick(item.path)}>
                     <Typography textAlign="center">{item.label}</Typography>
                   </MenuItem>
                 ))}
+                {/* Theme toggle option */}
                 <MenuItem onClick={handleThemeToggle}>
                   <Typography textAlign="center" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     {isDark ? 'Light Mode' : 'Dark Mode'}
                     {isDark ? <LightModeIcon /> : <DarkModeIcon />}
                   </Typography>
                 </MenuItem>
+                {/* Sign out option */}
                 <MenuItem onClick={handleSignOut}>
                   <Typography textAlign="center">Sign Out</Typography>
                 </MenuItem>
@@ -201,8 +239,20 @@ export default function NavBar({ onThemeToggle, isDark }) {
           </Toolbar>
         </Container>
       </AppBar>
+      
+      {/* Application routes */}
       <Routes>
+        {/* Public routes */}
         <Route path="/" element={<Home />} />
+        <Route path="/profile" element={<UserProfile />} />
+        <Route path="/profile/:id" element={<OtherProfiles />} />
+        <Route path="/housessold" element={<HistoricSales />} />
+        <Route path="/search-results" element={<SearchResults />} />
+        <Route path="/property/:id" element={<PropertyPage />} />
+        <Route path="/messages" element={<MessagesPage />} />
+        <Route path="/favourites" element={<FavouritesPage />} />
+        
+        {/* Protected routes - restricted by user role */}
         <Route 
           path="/createlisting" 
           element={
@@ -212,11 +262,6 @@ export default function NavBar({ onThemeToggle, isDark }) {
             />
           } 
         />
-        <Route path="/profile" element={<UserProfile />} />
-        <Route path="/profile/:id" element={<OtherProfiles />} />
-        <Route path="/housessold" element={<HistoricSales />} />
-        <Route path="/search-results" element={<SearchResults />} />
-        <Route path="/property/:id" element={<PropertyPage />} />
         <Route 
           path="/approval" 
           element={
@@ -226,8 +271,6 @@ export default function NavBar({ onThemeToggle, isDark }) {
             />
           } 
         />
-        <Route path="/messages" element={<MessagesPage />} />
-        <Route path="/favourites" element={<FavouritesPage />} />
         <Route 
           path="/mylistings" 
           element={

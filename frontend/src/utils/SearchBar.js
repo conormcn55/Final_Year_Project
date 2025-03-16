@@ -10,11 +10,18 @@ import stockPhoto from '../images/stockPhoto.jpg';
 import 'dialog-polyfill/dist/dialog-polyfill.css';
 import dialogPolyfill from 'dialog-polyfill';
   
+// Google Maps API key from environment variables
 const GOOGLE_MAPS_API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
 
+/**
+ * Sets up dialog polyfill for browsers that don't support the HTML dialog element
+ * This ensures dialogs work across all browsers
+ */
 const setupDialogPolyfill = () => {
   if (typeof HTMLDialogElement === 'undefined') {
+    // Create a placeholder class if HTMLDialogElement is not supported
     window.HTMLDialogElement = class HTMLDialogElement extends HTMLElement {};
+    // Find and register all dialog elements on the page
     const dialogs = document.getElementsByTagName('dialog');
     Array.from(dialogs).forEach(dialog => {
       dialogPolyfill.registerDialog(dialog);
@@ -22,14 +29,24 @@ const setupDialogPolyfill = () => {
   }
 };
 
+/**
+ * SearchBar component for property search functionality
+ */
 const SearchBar = ({ soldStatus = 'false', title }) => {
   const theme = useTheme();
   const navigate = useNavigate();
+  // State for Autocomplete component
   const [value, setValue] = useState(null);
   const [inputValue, setInputValue] = useState('');
   const [options, setOptions] = useState([]);
+  
+  // State for filter popover
   const [anchorEl, setAnchorEl] = useState(null);
+  
+  // State for listing type (sale or rental)
   const [listingType, setListingType] = useState('sale');
+  
+  // Main search parameters state
   const [searchParams, setSearchParams] = useState({
     location: '', 
     guidePrice: '', 
@@ -42,9 +59,11 @@ const SearchBar = ({ soldStatus = 'false', title }) => {
     currentDate: new Date().toISOString() 
   });
 
+  // Refs to track script loading and Google service
   const loaded = useRef(false);
   const autocompleteService = useRef(null);
 
+  // Update sold status in search params when prop changes
   useEffect(() => {
     setSearchParams(prev => ({
       ...prev,
@@ -52,6 +71,7 @@ const SearchBar = ({ soldStatus = 'false', title }) => {
     }));
   }, [soldStatus]);
 
+  // Load Google Maps script on component mount (client-side only)
   useEffect(() => {
     if (!loaded.current && typeof window !== 'undefined') {
       loadGoogleMapsScript();
@@ -59,11 +79,16 @@ const SearchBar = ({ soldStatus = 'false', title }) => {
     }
   }, []);
 
+  /**
+   * Loads Google Maps API script with places library
+   * Sets up dialog polyfill before loading
+   */
   const loadGoogleMapsScript = () => {
     if (!document.querySelector('#google-maps')) {
       // Setup polyfill before loading Google Maps
       setupDialogPolyfill();
       
+      // Create and append script element
       const script = document.createElement('script');
       script.id = 'google-maps';
       script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places`;
@@ -75,17 +100,22 @@ const SearchBar = ({ soldStatus = 'false', title }) => {
     }
   };
 
+  /**
+   * Debounced function to fetch autocomplete predictions for locations
+   * Filters results to include only relevant location types in Ireland
+   */
   const fetchAutocomplete = useMemo(
     () =>
       debounce((request, callback) => {
         autocompleteService.current?.getPlacePredictions(
           {
             ...request,
-            types: ['geocode'],
-            componentRestrictions: { country: 'IE' },
+            types: ['geocode'], // Limit to geographic locations
+            componentRestrictions: { country: 'IE' }, // Limit to Ireland
           },
           (predictions, status) => {
             if (status === window.google.maps.places.PlacesServiceStatus.OK) {
+              // Filter predictions to include only relevant location types
               const filteredPredictions = predictions.filter(
                 (prediction) =>
                   prediction.types.includes('locality') ||
@@ -100,37 +130,49 @@ const SearchBar = ({ soldStatus = 'false', title }) => {
             }
           }
         );
-      }, 400),
+      }, 400), // 400ms delay to avoid too many API calls
     []
   );
   
+  // Effect to fetch location predictions when input changes
   useEffect(() => {
     let active = true;
 
+    // Initialize Google Places service if available
     if (!autocompleteService.current && window.google) {
       autocompleteService.current = new window.google.maps.places.AutocompleteService();
     }
+    
+    // Clear options if input is empty
     if (inputValue === '') {
       setOptions([]);
       return;
     }
 
+    // Fetch predictions for current input
     fetchAutocomplete({ input: inputValue }, (results) => {
       if (active) {
         setOptions(results || []);
       }
     });
 
+    // Clean up function to prevent state updates if component unmounts
     return () => {
       active = false;
     };
   }, [inputValue, fetchAutocomplete]);
 
+  /**
+   * Updates search parameters when form fields change
+   */
   const handleSearchParamChange = (e) => {
     const { name, value } = e.target;
     setSearchParams((prevParams) => ({ ...prevParams, [name]: value }));
   };
 
+  /**
+   * Updates listing type (sale/rental) when toggle changes
+   */
   const handleListingTypeToggle = (event, newListingType) => {
     if (newListingType !== null) {
       setListingType(newListingType);
@@ -141,29 +183,43 @@ const SearchBar = ({ soldStatus = 'false', title }) => {
     }
   };
 
+  /**
+   * Handles search form submission
+   * Processes search parameters and navigates to results page
+   */
   const submitSearch = (e) => {
     e.preventDefault();
     const processedParams = { ...searchParams };
   
+    // Process location format for better search results
     if (processedParams.location) {
+      // Remove ", Ireland" suffix if present
       processedParams.location = processedParams.location.replace(/, Ireland$/, '');
       const locationParts = processedParams.location.split(/\s+/);
+      // Add "County" prefix for single-word locations that don't already have it
       if (locationParts.length === 1 && !processedParams.location.toLowerCase().includes('county')) {
         processedParams.location = `County ${processedParams.location}`;
       }
     }
+    
+    // Add filter for future listings only if not searching sold properties
     if (soldStatus === 'false') {
       processedParams.filterFutureOnly = 'true';
     }
     
+    // Remove empty parameters
     const filteredParams = Object.fromEntries(
       Object.entries(processedParams).filter(([_, v]) => v)
     );
+    
+    // Convert params to URL query string
     const searchQuery = new URLSearchParams(filteredParams).toString();
   
+    // Navigate to search results page with query
     navigate(`/search-results?${searchQuery}`);
   };
 
+  // Popover handlers
   const handlePopoverClick = (event) => setAnchorEl(event.currentTarget);
   const handlePopoverClose = () => setAnchorEl(null);
 
@@ -178,6 +234,7 @@ const SearchBar = ({ soldStatus = 'false', title }) => {
         overflow: 'hidden',
       }}
     >
+      {/* Main content wrapper */}
       <Box
         sx={{
           position: 'absolute',
@@ -188,6 +245,7 @@ const SearchBar = ({ soldStatus = 'false', title }) => {
           display: 'flex',
         }}
       >
+        {/* Left side - Image with gradient overlay */}
         <Box
           sx={{
             position: 'relative',
@@ -195,6 +253,7 @@ const SearchBar = ({ soldStatus = 'false', title }) => {
             height: '100%',
           }}
         >
+          {/* Background image */}
           <Box
             sx={{
               position: 'absolute',
@@ -217,6 +276,8 @@ const SearchBar = ({ soldStatus = 'false', title }) => {
               }
             }}
           />
+          
+          {/* Gradient overlay - adapts to dark/light mode */}
           <Box
             sx={{
               position: 'absolute',
@@ -244,6 +305,7 @@ const SearchBar = ({ soldStatus = 'false', title }) => {
           />
         </Box>
 
+        {/* Right side - Search form */}
         <Box
           sx={{
             width: '40%',
@@ -257,6 +319,7 @@ const SearchBar = ({ soldStatus = 'false', title }) => {
           }}
         >
           <Box sx={{ width: '100%', maxWidth: '500px' }}>
+            {/* Page title - changes based on soldStatus */}
             <Typography 
               variant="h4" 
               component="h1" 
@@ -269,6 +332,7 @@ const SearchBar = ({ soldStatus = 'false', title }) => {
               {title || (soldStatus === 'false' ? 'Find Your New Property' : 'Browse Sold Properties')}
             </Typography>
             
+            {/* Listing type toggle (sale/rental) */}
             <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
               <ToggleButtonGroup
                 color="secondary"
@@ -282,7 +346,9 @@ const SearchBar = ({ soldStatus = 'false', title }) => {
               </ToggleButtonGroup>
             </Box>
             
+            {/* Location search and filter button */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 4 }}>
+              {/* Location autocomplete search input */}
               <Autocomplete
                 sx={{ flex: 1 }}
                 options={options}
@@ -331,6 +397,7 @@ const SearchBar = ({ soldStatus = 'false', title }) => {
                 )}
               />
               
+              {/* Filter button */}
               <IconButton 
                 aria-describedby="filter-popover" 
                 onClick={handlePopoverClick} 
@@ -347,6 +414,7 @@ const SearchBar = ({ soldStatus = 'false', title }) => {
               </IconButton>
             </Box>
 
+            {/* Search button */}
             <Button 
               variant="contained" 
               onClick={submitSearch} 
@@ -363,6 +431,7 @@ const SearchBar = ({ soldStatus = 'false', title }) => {
         </Box>
       </Box>
 
+      {/* Filter popover */}
       <Popover
         id="filter-popover"
         open={Boolean(anchorEl)}
@@ -379,11 +448,14 @@ const SearchBar = ({ soldStatus = 'false', title }) => {
           } 
         }}
       >
-        <Typography variant="h6" sx={{ mb: 2, color: 'text.primary' }}>
+{/* Popover header */}
+<Typography variant="h6" sx={{ mb: 2, color: 'text.primary' }}>
           Advanced Filters
         </Typography>
         
+        {/* Stack of filter form controls with consistent spacing */}
         <Stack spacing={2}>
+          {/* Maximum price filter with Euro symbol */}
           <TextField
             fullWidth
             label="Maximum Guide Price"
@@ -397,6 +469,7 @@ const SearchBar = ({ soldStatus = 'false', title }) => {
             }}
           />
 
+          {/* Bedrooms dropdown selection */}
           <TextField
             fullWidth
             select
@@ -407,11 +480,13 @@ const SearchBar = ({ soldStatus = 'false', title }) => {
             onChange={handleSearchParamChange}
           >
             <MenuItem value="">Any</MenuItem>
+            {/* Generate options for 1-5 bedrooms */}
             {[1, 2, 3, 4, 5].map((num) => (
               <MenuItem key={num} value={num}>{num}</MenuItem>
             ))}
           </TextField>
 
+          {/* Bathrooms dropdown selection */}
           <TextField
             fullWidth
             select
@@ -422,11 +497,13 @@ const SearchBar = ({ soldStatus = 'false', title }) => {
             onChange={handleSearchParamChange}
           >
             <MenuItem value="">Any</MenuItem>
+            {/* Generate options for 1-5 bathrooms */}
             {[1, 2, 3, 4, 5].map((num) => (
               <MenuItem key={num} value={num}>{num}</MenuItem>
             ))}
           </TextField>
 
+          {/* Property type dropdown from imported property types */}
           <TextField
             fullWidth
             select
@@ -437,6 +514,7 @@ const SearchBar = ({ soldStatus = 'false', title }) => {
             onChange={handleSearchParamChange}
           >
             <MenuItem value="">Any Type</MenuItem>
+            {/* Map through imported property types array */}
             {propertyType.map((type) => (
               <MenuItem key={type.value} value={type.value}>
                 {type.label}
@@ -444,6 +522,7 @@ const SearchBar = ({ soldStatus = 'false', title }) => {
             ))}
           </TextField>
 
+          {/* Sort options dropdown */}
           <TextField
             fullWidth
             select
@@ -459,6 +538,7 @@ const SearchBar = ({ soldStatus = 'false', title }) => {
             <MenuItem value="currentBidHighLow">Current Bid: High to Low</MenuItem>
           </TextField>
 
+          {/* Apply filters button - closes popover when clicked */}
           <Button 
             variant="contained" 
             color="secondary" 

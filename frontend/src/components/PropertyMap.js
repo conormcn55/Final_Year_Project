@@ -18,8 +18,12 @@ import {
 } from '@mui/icons-material';
 import useEircodeGeocoding from '../utils/useEirecodeGeocoding';
 
+/**
+ * Component for displaying property information on a map 
+ */
 const MapPopup = ({ property }) => {
   const navigate = useNavigate();
+  // Destructure property data for easier access
   const {
     _id,
     address,
@@ -33,6 +37,9 @@ const MapPopup = ({ property }) => {
     sqdMeters,
   } = property;
 
+  /**
+   * Format address object into a readable string
+   */
   const formatAddress = (addr) => {
     if (!addr) return 'Address Not Available';
     const parts = [
@@ -43,6 +50,9 @@ const MapPopup = ({ property }) => {
     return parts.length > 0 ? parts.join(', ') : 'Address Not Available';
   };
 
+  /**
+   * Navigate to property details page when popup is clicked
+   */
   const handleClick = () => {
     navigate(`/property/${_id}`);
   };
@@ -61,6 +71,7 @@ const MapPopup = ({ property }) => {
       }}
       onClick={handleClick}
     >
+      {/* Property thumbnail image */}
       <CardMedia
         component="img"
         height="140"
@@ -69,10 +80,12 @@ const MapPopup = ({ property }) => {
         sx={{ objectFit: 'cover' }}
       />
       <CardContent sx={{ p: 1.5 }}>
+        {/* Property address */}
         <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'medium' }}>
           {formatAddress(address)}
         </Typography>
         
+        {/* Current bid and guide price */}
         <Typography variant="subtitle2" color="text.primary" sx={{ mb: 0.5 }}>
           €{currentBid.amount?.toLocaleString()}
         </Typography>
@@ -80,6 +93,7 @@ const MapPopup = ({ property }) => {
           Guide: €{guidePrice?.toLocaleString()}
         </Typography>
         
+        {/* Sold status indicator */}
         {sold && (
           <Chip 
             label="SOLD" 
@@ -89,6 +103,7 @@ const MapPopup = ({ property }) => {
           />
         )}
 
+        {/* Property features grid */}
         <Grid container spacing={1} sx={{ mt: 0.5 }}>
           <Grid item xs={6}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -119,19 +134,28 @@ const MapPopup = ({ property }) => {
     </Card>
   );
 };
+
+/**
+ * Component for rendering a single property marker on the map
+ */
 const PropertyMapMarker = ({ property }) => {
+  // Determine if we need to geocode the address
   const shouldGeocode = !property.latitude || !property.longitude;
+  // Use custom hook to get coordinates from Eircode if needed
   const { coordinates, loading, error } = useEircodeGeocoding(
     shouldGeocode ? property.address?.addressEirecode : null
   );
 
+  // Don't render anything while loading or if there's an error
   if (loading || error) {
     return null;
   }
 
+  // Use property's coordinates if available, otherwise use geocoded coordinates
   const latitude = property.latitude || coordinates?.latitude;
   const longitude = property.longitude || coordinates?.longitude;
 
+  // Skip rendering if no valid coordinates are available
   if (!latitude || !longitude) {
     return null;
   }
@@ -147,35 +171,46 @@ const PropertyMapMarker = ({ property }) => {
   );
 };
 
+/**
+ * Main map component that displays multiple properties on a map
+ */
 const PropertyMap = ({ properties }) => {
+  // Dynamically load Leaflet CSS
   useEffect(() => {
     const link = document.createElement('link');
     link.rel = 'stylesheet';
     link.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.css';
     document.head.appendChild(link);
 
+    // Clean up function to remove the CSS when component unmounts
     return () => {
       document.head.removeChild(link);
     };
   }, []);
 
+  // Default map center (approximately center of Ireland)
   const defaultCenter = [53.1424, -7.6921];
 
   return (
     <Box sx={{ width: '100%', height: 600, position: 'relative' }}>
+      {/* Leaflet Map Container */}
       <MapContainer
         center={defaultCenter}
         zoom={7}
         style={{ height: '100%', width: '100%' }}
       >
+        {/* Map tile layer using OpenStreetMap */}
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
+        {/* Render a marker for each property */}
         {properties.map((property) => (
           <PropertyMapMarker key={property._id} property={property} />
         ))}
       </MapContainer>
+      
+      {/* Message to display when no properties are available */}
       {properties.length === 0 && (
         <Box
           sx={{

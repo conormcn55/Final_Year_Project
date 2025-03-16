@@ -13,6 +13,12 @@ import {
 } from '@mui/material';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 
+/**
+ * BidBot Component - An automated bidding assistant for property auctions
+ * This component creates an automated bidding system that places bids on behalf of users
+ * during property auctions. When activated, it monitors incoming bids and automatically
+ * places counter-bids up to a user-defined limit.
+ */
 const BidBot = ({ 
   propertyId, 
   userId, 
@@ -25,19 +31,25 @@ const BidBot = ({
   onBidSubmit,
   onError 
 }) => {
-  const [bidBotLimit, setBidBotLimit] = useState('');
-  const [bidIncrement, setBidIncrement] = useState('500');
-  const [isBidBotActive, setIsBidBotActive] = useState(false);
-  const [openDialog, setOpenDialog] = useState(false);
-  const [isFirstBid, setIsFirstBid] = useState(true);
+  // State for bid bot configuration
+  const [bidBotLimit, setBidBotLimit] = useState(''); // Maximum bid limit
+  const [bidIncrement, setBidIncrement] = useState('500'); // Default increment amount
+  const [isBidBotActive, setIsBidBotActive] = useState(false); // Whether bidbot is running
+  const [openDialog, setOpenDialog] = useState(false); // Dialog visibility
+  const [isFirstBid, setIsFirstBid] = useState(true); // Track if first automatic bid
+
+  // Refs to access latest state values in async callbacks
   const bidBotLimitRef = useRef(bidBotLimit);
   const bidIncrementRef = useRef(bidIncrement);
   const isBidBotActiveRef = useRef(isBidBotActive);
   const isFirstBidRef = useRef(isFirstBid);
-  const processingBidRef = useRef(false);
+  const processingBidRef = useRef(false); // Prevent concurrent bid submissions
   const currentBidRef = useRef(currentBid);
   const lastBidderIdRef = useRef(lastBidderId);
+  const bidQueueRef = useRef([]); // Queue to store incoming bids that need processing
+  const processingQueueRef = useRef(false); // Flag to indicate if queue is being processed
 
+  // Update refs whenever state changes to ensure async functions use current values
   useEffect(() => {
     bidBotLimitRef.current = bidBotLimit;
     bidIncrementRef.current = bidIncrement;
@@ -47,93 +59,150 @@ const BidBot = ({
     lastBidderIdRef.current = lastBidderId;
   }, [bidBotLimit, bidIncrement, isBidBotActive, isFirstBid, currentBid, lastBidderId]);
 
+  // Process bid queue
+  const processQueue = async () => {
+    if (processingQueueRef.current || bidQueueRef.current.length === 0) {
+      return;
+    }
+    
+    processingQueueRef.current = true;
+    
+    while (bidQueueRef.current.length > 0 && isBidBotActiveRef.current) {
+      const { bidAmount, bidderId } = bidQueueRef.current.shift();
+      
+      // Only process if bid is still relevant (not outdated)
+      if (parseFloat(bidAmount) >= parseFloat(currentBidRef.current)) {
+        await handleAutomaticBid(bidAmount, bidderId);
+      }
+      
+      // Small delay between processing queue items
+      await new Promise(resolve => setTimeout(resolve, 3000));
+    }
+    
+    processingQueueRef.current = false;
+  };
+
+  // Queue a bid for processing
+  const queueBid = (bidAmount, bidderId) => {
+    // Add to queue only if not already there
+    if (!bidQueueRef.current.some(item => item.bidderId === bidderId && item.bidAmount === bidAmount)) {
+      bidQueueRef.current.push({ bidAmount, bidderId });
+      processQueue();
+    }
+  };
+
+  // Monitor for bid updates that require automated responses
   useEffect(() => {
     if (
-      isBidBotActiveRef.current && 
-      !processingBidRef.current && 
-      lastBidderId && 
-      lastBidderId !== userId &&  
-      parseFloat(currentBidRef.current) < parseFloat(bidBotLimitRef.current) 
+      isBidBotActiveRef.current && // BidBot is active
+      lastBidderId && // Valid bidder exists
+      lastBidderId !== userId &&  // Current user is not the last bidder
+      parseFloat(currentBidRef.current) < parseFloat(bidBotLimitRef.current) // Current bid below limit
     ) {
-      const delay = Math.random() * 3000 + 1000; 
+      // Add random delay (1-5 seconds) to make bidding appear more human-like
+      const delay = Math.random() * 4000 + 1000; 
       setTimeout(() => {
+        // Double-check last bidder hasn't changed before submitting bid
         if (lastBidderIdRef.current !== userId) {
-          handleAutomaticBid(currentBidRef.current, lastBidderIdRef.current);
+          queueBid(currentBidRef.current, lastBidderIdRef.current);
         }
       }, delay);
     }
   }, [currentBid, lastBidderId]);
   
-
+  // Setup socket listeners for real-time bid updates
   useEffect(() => {
     if (!socket) return;
 
+    // Handler for incoming bids via socket
     const handleReceiveBid = (data) => {
       if (data.room === propertyId && data.userId !== userId && isBidBotActiveRef.current) {
         console.log("BidBot received socket bid update:", data);
+        if (data.bid && data.userId) {
+          queueBid(data.bid, data.userId);
+        }
       }
     };
-
     // Add event listener
     socket.on("receive_bid", handleReceiveBid);
-
+    // Cleanup on unmount
     return () => {
       socket.off("receive_bid", handleReceiveBid);
     };
   }, [propertyId, userId, socket]);
 
+  /**
+   * Process automatic bid in response to competitor bids
+   */
   const handleAutomaticBid = async (incomingBidAmount, incomingBidderId, retryCount = 0) => {
+    // Prevent concurrent bid processing
     if (processingBidRef.current) {
+      // Queue the bid instead of dropping it
+      queueBid(incomingBidAmount, incomingBidderId);
       return;
     }
     
     processingBidRef.current = true;
     
     try {
+      // Skip if the incoming bid is from the current user
       if (incomingBidderId === userId) {
         processingBidRef.current = false;
         return;
       }
-
+      
+      // Check connection status
       if (!socketConnected) {
         onError("Connection to bidding server lost. BidBot paused.");
         setIsBidBotActive(false);
         processingBidRef.current = false;
         return;
       }
-
-      const currentBidNum = parseFloat(incomingBidAmount);
+      
+      // Get the latest bid amount from the system
+      const latestBidAmount = Math.max(
+        parseFloat(incomingBidAmount), 
+        parseFloat(currentBidRef.current)
+      );
+      
+      // Parse numeric values
       const limitNum = parseFloat(bidBotLimitRef.current);
       const incrementNum = parseFloat(bidIncrementRef.current);
-
       let nextBidAmount;
+      
+      // Calculate next bid amount differently for first vs subsequent bids
       if (isFirstBidRef.current) {
+        // For first bid, round up to next increment multiple
         nextBidAmount = Math.min(
-          Math.ceil((currentBidNum + 1) / incrementNum) * incrementNum,
+          Math.ceil((latestBidAmount + 1) / incrementNum) * incrementNum,
           limitNum
         );
         setIsFirstBid(false);
       } else {
+        // For subsequent bids, simply add the increment
         nextBidAmount = Math.min(
-          currentBidNum + incrementNum,
+          latestBidAmount + incrementNum,
           limitNum
         );
       }
-
+      
+      // If retrying due to conflict, increase bid further
       if (retryCount > 0) {
         nextBidAmount = Math.min(
           nextBidAmount + (incrementNum * retryCount),
           limitNum
         );
       }
-
-      console.log(`BidBot calculating: Current: ${currentBidNum}, Next: ${nextBidAmount}, Limit: ${limitNum}`);
-
+      
+      console.log(`BidBot calculating: Current: ${latestBidAmount}, Next: ${nextBidAmount}, Limit: ${limitNum}`);
+      
+      // Proceed only if next bid is valid (higher than current, within limits)
       if (
-        nextBidAmount > currentBidNum &&
+        nextBidAmount > latestBidAmount &&
         nextBidAmount <= limitNum && 
         nextBidAmount <= amountAllowed
       ) {
+        // Prepare bid data
         const bidData = {
           userName,
           userId,
@@ -141,7 +210,8 @@ const BidBot = ({
           amount: nextBidAmount,
           time: new Date().toISOString()
         };
-
+        
+        // Submit bid to API
         const bidResponse = await fetch(`${process.env.REACT_APP_API_URL}/bids/newbid`, {
           method: 'POST',
           headers: {
@@ -149,18 +219,19 @@ const BidBot = ({
           },
           body: JSON.stringify(bidData)
         });
-
+        
         if (!bidResponse.ok) {
           const errorData = await bidResponse.json();
-            if (errorData.message && errorData.message.includes("already exists")) {
+          // Handle duplicate bid errors by retrying with higher amount
+          if (errorData.message && errorData.message.includes("already exists")) {
             console.log("Duplicate bid detected, incrementing and retrying");
             processingBidRef.current = false;
             return handleAutomaticBid(incomingBidAmount, incomingBidderId, retryCount + 1);
           }
-          
           throw new Error(errorData.message || 'Failed to submit bid');
         }
-
+        
+        // Get the new bid details and update property record
         const newBid = await bidResponse.json();
         const propertyUpdateResponse = await fetch(`${process.env.REACT_APP_API_URL}/property/${propertyId}/bid`, {
           method: 'PUT',
@@ -177,6 +248,7 @@ const BidBot = ({
           throw new Error('Failed to update property with new bid');
         }
 
+        // Get updated property details and broadcast bid via socket
         const updatedProperty = await propertyUpdateResponse.json();
         socket.emit("submit_bid", { 
           bid: nextBidAmount, 
@@ -189,9 +261,11 @@ const BidBot = ({
         console.log(`BidBot successfully placed bid: €${nextBidAmount}`);
         onBidSubmit && onBidSubmit(nextBidAmount);
       } else if (nextBidAmount > amountAllowed) {
+        // Handle case where bid exceeds user's approved amount
         onError(`BidBot reached your approved limit of €${amountAllowed.toLocaleString()}`);
         setIsBidBotActive(false);
       } else if (nextBidAmount > limitNum) {
+        // Handle case where bid exceeds user's set limit
         onError(`BidBot reached your set limit of €${limitNum.toLocaleString()}`);
         setIsBidBotActive(false);
       }
@@ -199,39 +273,55 @@ const BidBot = ({
       console.error('BidBot error:', err);
       onError && onError(err.message || 'Failed to submit automated bid');
       
-      // If there's a serious error, deactivate the BidBot
+      // Deactivate BidBot on serious errors
       if (err.message.includes("approved limit") || err.message.includes("Failed to")) {
         setIsBidBotActive(false);
       }
     } finally {
+      // Reset processing flag
       processingBidRef.current = false;
+      
+      // Process next item in queue if any
+      setTimeout(() => {
+        processQueue();
+      }, 3000);
     }
   };
 
+  /**
+   * Toggle BidBot activation state
+   * If active, deactivate it; if inactive, open setup dialog
+   */
   const toggleBidBot = (e) => {
     e && e.preventDefault();
     
     if (isBidBotActive) {
       setIsBidBotActive(false);
       setIsFirstBid(true);
+      // Clear any pending bids
+      bidQueueRef.current = [];
     } else {
       setOpenDialog(true);
     }
   };
 
+  /**
+   * Start the BidBot with current settings
+   * Validates settings and initiates first bid if needed
+   */
   const startBidBot = async (e) => {
     e && e.preventDefault();
     
+    // Check connection
     if (!socket || !socketConnected) {
       onError("Connection to bidding server lost. Cannot start BidBot.");
       return;
     }
-
+    // Validate inputs
     if (!bidBotLimit) {
       onError('Please set a bid bot limit');
       return;
     }
-
     if (!bidIncrement || parseFloat(bidIncrement) <= 0) {
       onError('Please set a valid bid increment');
       return;
@@ -244,35 +334,45 @@ const BidBot = ({
       onError('Invalid bid values');
       return;
     }
-
     if (limitNum <= currentBidNum) {
       onError('Bid bot limit must be higher than current bid');
       return;
     }
-
     if (limitNum > amountAllowed) {
       onError(`Bid bot limit cannot exceed your approved limit of €${amountAllowed.toLocaleString()}`);
       return;
     }
-
+    
+    // Clear any existing queue
+    bidQueueRef.current = [];
+    processingQueueRef.current = false;
+    
+    // Activate BidBot
     setIsBidBotActive(true);
     setOpenDialog(false);
     setIsFirstBid(true);
     processingBidRef.current = false;
-
+    
+    // If user is not the current winning bidder, place initial bid
     if (lastBidderId && lastBidderId !== userId) {
       setTimeout(() => {
-        handleAutomaticBid(currentBid, lastBidderId);
+        queueBid(currentBid, lastBidderId);
       }, 500);
     }
   };
 
+  /**
+   * Close the BidBot setup dialog
+   */
   const handleDialogClose = (e) => {
     e && e.preventDefault();
     setOpenDialog(false);
   };
+  
+  // Check if current user is the leading bidder
   const isUserWinning = lastBidderId === userId;
 
+  // Common styling for text fields
   const textFieldStyle = {
     '& .MuiOutlinedInput-root': {
       '& fieldset': {
@@ -292,9 +392,9 @@ const BidBot = ({
       color: 'secondary.main', 
     }
   };
-
   return (
     <Box>
+      {/* BidBot toggle button with tooltip */}
       <Tooltip title={isBidBotActive 
         ? "BidBot Active - Click to Stop" 
         : "Setup BidBot"}>
@@ -325,6 +425,7 @@ const BidBot = ({
         </IconButton>
       </Tooltip>
 
+      {/* BidBot setup dialog */}
       <Dialog 
         open={openDialog} 
         onClose={handleDialogClose}
@@ -341,6 +442,7 @@ const BidBot = ({
           <Typography variant="body2" sx={{ mb: 2 }}>
             BidBot will automatically place bids on your behalf when others outbid you, up to your specified limit.
           </Typography>
+          {/* Maximum bid limit input */}
           <TextField
             fullWidth
             label="Maximum Bid Limit"
@@ -366,6 +468,7 @@ const BidBot = ({
           />
         </DialogContent>
         <DialogActions>
+          {/* Cancel button - closes dialog without starting BidBot */}
           <Button 
             onClick={handleDialogClose} 
             type="button"
@@ -373,6 +476,7 @@ const BidBot = ({
           >
             Cancel
           </Button>
+          {/* Start button - activates BidBot with current settings */}
           <Button 
             variant="contained" 
             color="secondary" 
@@ -387,5 +491,4 @@ const BidBot = ({
     </Box>
   );
 };
-
 export default BidBot;

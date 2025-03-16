@@ -18,19 +18,39 @@ import {
 import useUserData from '../utils/useUserData';
 import logo from '../images/logo.png';
 
+/**
+ * Footer Component
+ * 
+ * Renders the application footer with navigation links, contact information,
+ * and theme toggle functionality. Also handles authentication redirects for
+ * protected routes.
+ * 
+ */
 const Footer = ({ onThemeToggle, isDark }) => {
+  // Get current user data from custom hook
   const userData = useUserData();
+  // Initialize navigate function for routing
   const navigate = useNavigate();
 
+  /**
+   * Handles clicks on protected links
+   * Redirects to Google authentication if user is not logged in
+   * Otherwise navigates to the requested path
+   */
   const handleProtectedLink = (e, path) => {
     e.preventDefault();
     if (!userData._id) {
+      // Redirect to authentication if user is not logged in
       window.location.href = `${process.env.REACT_APP_API_URL}/user/auth/google`;
     } else {
+      // Navigate to requested path if user is logged in
       navigate(path);
     }
   };
 
+  /**
+   * Handles click on the logo to navigate to homepage
+   */
   const handleLogoClick = () => {
     navigate('/');
   };
@@ -92,6 +112,7 @@ const Footer = ({ onThemeToggle, isDark }) => {
 
               {/* Navigation Links */}
               <Stack direction="row" spacing={2}>
+                {/* Profile link - Protected route */}
                 <Link
                   href="/profile"
                   color="text.secondary"
@@ -101,6 +122,7 @@ const Footer = ({ onThemeToggle, isDark }) => {
                 >
                   Profile
                 </Link>
+                {/* Houses Sold link - Public route */}
                 <Link
                   href="/housessold"
                   color="text.secondary"
@@ -109,6 +131,7 @@ const Footer = ({ onThemeToggle, isDark }) => {
                 >
                   Houses Sold
                 </Link>
+                {/* Favourites link - Protected route */}
                 <Link
                   href="/favourites"
                   color="text.secondary"
@@ -123,18 +146,21 @@ const Footer = ({ onThemeToggle, isDark }) => {
 
             {/* Right Side - Contact and Theme */}
             <Stack direction="row" spacing={2} alignItems="center">
+              {/* Email contact info */}
               <Stack direction="row" spacing={0.5} alignItems="center">
                 <Email fontSize="small" color="action" />
                 <Typography variant="caption" color="text.secondary">
                   conor.mcnultycleary.2022@mumail.ie
                 </Typography>
               </Stack>
+              {/* Location info */}
               <Stack direction="row" spacing={0.5} alignItems="center">
                 <LocationOn fontSize="small" color="action" />
                 <Typography variant="caption" color="text.secondary">
                   Maynooth, Ireland
                 </Typography>
               </Stack>
+              {/* Theme toggle button */}
               <IconButton
                 onClick={onThemeToggle}
                 color="inherit"
@@ -145,7 +171,7 @@ const Footer = ({ onThemeToggle, isDark }) => {
             </Stack>
           </Stack>
 
-          {/* Copyright - Bottom */}
+          {/* Project information */}
           <Typography
             variant="caption"
             color="text.secondary"

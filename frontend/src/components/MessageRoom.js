@@ -5,35 +5,56 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import io from 'socket.io-client';
 import useUserData from '../utils/useUserData';
-
+/**
+ * Message Container is a componet where seller and buyer can 
+ * message after the buyer wins an auction
+ */
 export default function MessageContainer() {
+  // Initialize navigation and theme
   const navigate = useNavigate();
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === 'dark';
+  
+  // Extract user information from custom hook
   const { _id: userId, name: userName } = useUserData();
-  const [rooms, setRooms] = useState([]);
-  const [selectedRoom, setSelectedRoom] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [socket, setSocket] = useState(null);
-  const [newMessage, setNewMessage] = useState('');
+  
+  // State management
+  const [rooms, setRooms] = useState([]); // List of chat rooms
+  const [selectedRoom, setSelectedRoom] = useState(null); // Currently selected room
+  const [messages, setMessages] = useState([]); // Messages in the selected room
+  const [loading, setLoading] = useState(true); // Loading state
+  const [socket, setSocket] = useState(null); // Socket.io connection
+  const [newMessage, setNewMessage] = useState(''); // New message input
+  
+  // Use ref to track processed messages and prevent duplicates
   const messagesRef = useRef(new Set());
+  
+  // Initialize socket connection
   useEffect(() => {
     const newSocket = io(process.env.REACT_APP_SOCKET_URL);
     setSocket(newSocket);
 
+    // Clean up socket connection on component unmount
     return () => newSocket.close();
   }, []);
+  
+  // Fetch chat rooms when component mounts
   useEffect(() => {
     const fetchRooms = async () => {
-      if (!userId) return;
+      if (!userId) return; // Skip if user ID is not available
+      
       try {
+        // Get all rooms for the current user
         const roomsResponse = await axios.get(`${process.env.REACT_APP_API_URL}/room/get/${userId}`);
       
         const roomsData = roomsResponse.data.rooms || [];
+        
+        // Enrich room data with other user details
         const roomsWithUserDetails = await Promise.all(roomsData.map(async (room) => {
+          // Determine the other user in the conversation (not the current user)
           const otherUserId = room.bidder !== userId ? room.bidder : room.owner;
           
+          // Fetch other user's details
           const userResponse = await axios.get(`${process.env.REACT_APP_API_URL}/user/basic/${otherUserId}`);
           
           return {
@@ -54,15 +75,20 @@ export default function MessageContainer() {
     fetchRooms();
   }, [userId]);
 
+  // Fetch messages when a room is selected
   useEffect(() => {
     if (selectedRoom) {
+      // Reset the message tracking set
       messagesRef.current = new Set();
       
       const fetchRoomMessages = async () => {
         try {
+          // Get all messages for the selected room
           const messagesResponse = await axios.get(`${process.env.REACT_APP_API_URL}/messages/${selectedRoom._id}`);
           const fetchedMessages = messagesResponse.data || [];
-            fetchedMessages.forEach(msg => {
+          
+          // Add each message ID to the tracking set
+          fetchedMessages.forEach(msg => {
             messagesRef.current.add(msg._id);
           });
           
@@ -77,16 +103,22 @@ export default function MessageContainer() {
     }
   }, [selectedRoom]);
 
+  // Handle real-time messaging with socket.io
   useEffect(() => {
     if (socket && selectedRoom) {
+      // Join the room's socket channel
       socket.emit('join_room', selectedRoom._id);
   
+      // Handle incoming messages
       const handleNewMessage = (message) => {
         console.log('Received message:', message);
         
+        // Check if message is already processed (prevents duplicates)
         if (!messagesRef.current.has(message._id)) {
           messagesRef.current.add(message._id);
-            setMessages(prevMessages => {
+          
+          setMessages(prevMessages => {
+            // Check if this is confirming a temporary message
             const tempMessageIndex = prevMessages.findIndex(msg => 
               msg.sentBy === message.sentBy && 
               msg.message === message.message && 
@@ -94,10 +126,12 @@ export default function MessageContainer() {
             );
             
             if (tempMessageIndex >= 0) {
+              // Replace temp message with confirmed message
               const newMessages = [...prevMessages];
               newMessages[tempMessageIndex] = message;
               return newMessages;
             } else {
+              // Add new message
               return [...prevMessages, message];
             }
           });
@@ -106,8 +140,10 @@ export default function MessageContainer() {
         }
       };
 
+      // Subscribe to the socket event
       socket.on('receive_message', handleNewMessage);
 
+      // Clean up event listener when component unmounts or room changes
       return () => {
         socket.off('receive_message', handleNewMessage);
         socket.emit('leave_room', selectedRoom._id);
@@ -115,44 +151,55 @@ export default function MessageContainer() {
     }
   }, [socket, selectedRoom]);
 
+  // Handle room selection
   const handleRoomSelect = (room) => {
     setSelectedRoom(room);
   };
 
+  // Navigate to the other user's profile
   const handleProfileClick = () => {
     if (selectedRoom?.otherUserId) {
       navigate(`/profile/${selectedRoom.otherUserId}`);
     }
   };
 
+  // Handle sending a new message
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!newMessage.trim() || !selectedRoom || !socket) return;
 
     try {
+      // Prepare message data
       const messageData = {
         sentBy: userId,
         room: selectedRoom._id,
         message: newMessage
       };
 
+      // Create a temporary ID for optimistic UI update
       const tempId = `temp-${Date.now()}`;
-          const optimisticMessage = {
+      const optimisticMessage = {
         ...messageData,
         _id: tempId,
         time: new Date().toISOString()
       };
+      
+      // Track the temporary message
       messagesRef.current.add(tempId);
       
+      // Add message to UI immediately (optimistic update)
       setMessages(prevMessages => [...prevMessages, optimisticMessage]);
-      setNewMessage('');
+      setNewMessage(''); // Clear input field
 
+      // Send message to server
       const response = await axios.post(`${process.env.REACT_APP_API_URL}/messages/`, messageData);
       const savedMessage = response.data;
       
+      // Update tracking with the actual message ID
       messagesRef.current.delete(tempId);
       messagesRef.current.add(savedMessage._id);
       
+      // Replace temporary message with confirmed message from server
       setMessages(prevMessages => 
         prevMessages.map(msg => 
           msg._id === tempId ? savedMessage : msg
@@ -164,13 +211,16 @@ export default function MessageContainer() {
     }
   };
 
+  // Show loading state
   if (loading) return <Typography>Loading...</Typography>;
 
+  // Theme-based styling variables
   const backgroundColor = isDarkMode ? theme.palette.background.default : 'white';
   const borderColor = isDarkMode ? 'rgba(255, 255, 255, 0.12)' : '#ddd';
 
   return (
     <Box sx={{ display: 'flex', height: '100vh' }}>
+      {/* Sidebar with chat rooms list */}
       <Box sx={{ 
         width: '300px', 
         borderRight: `1px solid ${borderColor}`,
@@ -208,16 +258,18 @@ export default function MessageContainer() {
         </List>
       </Box>
 
+      {/* Main chat area */}
       <Box sx={{ 
         flex: 1,
         display: 'grid',
-        gridTemplateRows: 'auto 1fr auto',
+        gridTemplateRows: 'auto 1fr auto', // Header, messages, input
         height: '100%',
         overflow: 'hidden',
         bgcolor: backgroundColor
       }}>
         {selectedRoom ? (
           <>
+            {/* Chat header with user info */}
             <Box 
               sx={{ 
                 padding: 2, 
@@ -271,6 +323,7 @@ export default function MessageContainer() {
                       alignSelf: isCurrentUser ? 'flex-end' : 'flex-start',
                     }}
                   >
+                    {/* Message bubble */}
                     <Box 
                       sx={{ 
                         display: 'flex', 
@@ -303,6 +356,7 @@ export default function MessageContainer() {
                         </Typography>
                       </Box>
                     </Box>
+                    {/* Message timestamp */}
                     <Typography 
                       variant="caption" 
                       sx={{ 
@@ -318,6 +372,8 @@ export default function MessageContainer() {
                 );
               })}
             </Box>
+            
+            {/* Message input form */}
             <Box 
               component="form" 
               onSubmit={handleSendMessage} 
@@ -361,6 +417,7 @@ export default function MessageContainer() {
             </Box>
           </>
         ) : (
+          // Empty state when no room is selected
           <Typography sx={{ margin: 'auto' }}>
             Message here after winning an auction.
           </Typography>

@@ -31,22 +31,37 @@ import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
 import axios from 'axios';
 import useUserData from '../utils/useUserData';
 
+/**
+ * Styled input component that is visually hidden
+ * Used for file uploads to hide the default input appearance
+ */
 const VisuallyHiddenInput = styled('input')({
   display: 'none',
 });
 
+/**
+ * Styled Card component that expands to fill height
+ * and uses column direction for content layout
+ */
 const StyledCard = styled(Card)({
   height: '100%',
   display: 'flex',
   flexDirection: 'column'
 });
 
+/**
+ * Styled CardContent that grows to fill available space
+ * and uses column direction for content layout
+ */
 const StyledCardContent = styled(CardContent)({
   flexGrow: 1,
   display: 'flex',
   flexDirection: 'column'
 });
 
+/**
+ * Styled TextField with custom text size and color
+ */
 const StyledTextField = styled(TextField)(({ theme }) => ({
   '& .MuiInputBase-input': {
     fontSize: '1.1rem',
@@ -54,6 +69,9 @@ const StyledTextField = styled(TextField)(({ theme }) => ({
   }
 }));
 
+/**
+ * Styled TextField specifically for user name with larger text
+ */
 const NameTextField = styled(TextField)(({ theme }) => ({
   '& .MuiInputBase-input': {
     fontSize: '1.8rem',
@@ -62,13 +80,17 @@ const NameTextField = styled(TextField)(({ theme }) => ({
   }
 }));
 
+/**
+ * UserInfo component for displaying and editing user profile information
+ */
 export default function UserInfo() {
-  const userData = useUserData();
-  const [avatar, setAvatar] = useState(null);
-  const [files, setFiles] = useState([]);
-  const [isEditing, setIsEditing] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
+  const userData = useUserData(); // Get user data from custom hook
+  const [avatar, setAvatar] = useState(null);// State for user avatar
+  const [files, setFiles] = useState([]);  // State for user document files
+  const [isEditing, setIsEditing] = useState(false);  // State to track if form is in edit mode
+  const [loading, setLoading] = useState(false);  // State to track loading during save operations
+  const [formData, setFormData] = useState({  // State for all form fields
+
     name: '',
     email: '',
     description: '',
@@ -77,6 +99,9 @@ export default function UserInfo() {
     number: ''
   });
 
+  /**
+   * Initialize form data when userData is loaded or changes
+   */
   useEffect(() => {
     if (userData) {
       setAvatar(userData.avatar?.url || null);
@@ -92,6 +117,9 @@ export default function UserInfo() {
     }
   }, [userData]);
 
+  /**
+   * Handle changes to form input fields
+   */
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData({
@@ -100,6 +128,9 @@ export default function UserInfo() {
     });
   };
 
+  /**
+   * Handle file uploads for documents
+   */
   const handleFiles = (e) => {
     const uploadedFiles = Array.from(e.target.files);
     uploadedFiles.forEach(file => {
@@ -109,17 +140,20 @@ export default function UserInfo() {
         setFiles(prevFiles => [...prevFiles, {
           url: reader.result,
           filename: file.name,
-          isNew: true
+          isNew: true // Flag to identify newly added files
         }]);
       };
     });
   };
 
+  /**
+   * Handle deleting a file both from state and server if necessary
+   */
   const handleDeleteFile = async (index) => {
     const fileToDelete = files[index];
     
     try {
-     
+      // If file exists on server (has ID and isn't newly added), delete from server
       if (fileToDelete._id && !fileToDelete.isNew) {
         const response = await axios.delete(
           `${process.env.REACT_APP_API_URL}/user/removefile/${userData._id}/files/${fileToDelete._id}`,
@@ -133,6 +167,7 @@ export default function UserInfo() {
         }
       }
       
+      // Remove file from state
       setFiles(prevFiles => prevFiles.filter((_, i) => i !== index));
       
     } catch (error) {
@@ -141,6 +176,9 @@ export default function UserInfo() {
     }
   };
 
+  /**
+   * Handle avatar image upload and preview
+   */
   const handleAvatarChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -152,18 +190,24 @@ export default function UserInfo() {
     }
   };
 
+  /**
+   * Handle saving all user profile changes to the server
+   */
   const handleSave = async () => {
     setLoading(true);
     try {
+      // Separate new files from existing ones
       const newFiles = files.filter(file => file.isNew);
       const existingFiles = files.filter(file => !file.isNew);
 
+      // Prepare update data
       const updateData = {
         ...formData,
         avatar: avatar,
         files: [...existingFiles, ...newFiles]
       };
 
+      // Send update request to server
       const response = await axios.put(
         `${process.env.REACT_APP_API_URL}/user/edit/${userData._id}`,
         updateData,
@@ -182,6 +226,7 @@ export default function UserInfo() {
     }
   };
 
+  // Show loading spinner while user data is being fetched
   if (!userData) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
@@ -193,6 +238,7 @@ export default function UserInfo() {
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
       <Box sx={{ padding: '2rem', maxWidth: 1200, margin: '0 auto' }}>
+        {/* Profile Header Card */}
         <StyledCard sx={{ mb: 4 }}>
           <CardHeader 
             title="Profile"
@@ -208,12 +254,14 @@ export default function UserInfo() {
           />
           <Divider />
           <CardContent>
+            {/* Avatar and Name Section */}
             <Box sx={{ display: 'flex', gap: 3, alignItems: 'center', mb: 3 }}>
               <Box sx={{ position: 'relative' }}>
                 <Avatar
                   src={avatar}
                   sx={{ width: 120, height: 120 }}
                 />
+                {/* Edit avatar button - only shown in edit mode */}
                 {isEditing && (
                   <Button
                     component="label"
@@ -254,6 +302,7 @@ export default function UserInfo() {
         </StyledCard>
 
         <Grid container spacing={3}>
+          {/* Contact & Account Information Card */}
           <Grid item xs={12} md={6}>
             <StyledCard>
               <CardHeader title="Contact & Account Information" />
@@ -291,6 +340,7 @@ export default function UserInfo() {
                       <MenuItem value="estate agent">Estate Agent</MenuItem>
                     </Select>
                   </FormControl>
+                  {/* Conditional registration number field for non-default users */}
                   {formData.userType !== 'default' && (
                     <StyledTextField
                       name="regNumber"
@@ -308,6 +358,7 @@ export default function UserInfo() {
           </Grid>
 
           <Grid item xs={12} md={6} container spacing={3}>
+            {/* Description Card */}
             <Grid item xs={12}>
               <StyledCard>
                 <CardHeader title="Description" />
@@ -329,6 +380,7 @@ export default function UserInfo() {
               </StyledCard>
             </Grid>
 
+            {/* Documents Card */}
             <Grid item xs={12}>
               <StyledCard>
                 <CardHeader 
@@ -353,6 +405,7 @@ export default function UserInfo() {
                 />
                 <Divider />
                 <StyledCardContent>
+                  {/* Scrollable list of document files */}
                   <List sx={{ 
                     flexGrow: 1, 
                     maxHeight: '300px',
@@ -390,6 +443,7 @@ export default function UserInfo() {
                             {file.filename}
                           </a>
                         </ListItemText>
+                        {/* Delete file button - only shown in edit mode */}
                         {isEditing && (
                           <ListItemSecondaryAction>
                             <IconButton
