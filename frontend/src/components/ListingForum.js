@@ -45,7 +45,7 @@ export default function ListingForum() {
             addressLine3: '',
             addressTown: '',
             addressCounty: '',
-            addressEirecode: ''
+            addressEircode: ''
         },
         guidePrice: '',
         // Initial bid information structure
@@ -155,7 +155,7 @@ export default function ListingForum() {
                         addressLine3: '',
                         addressTown: '',
                         addressCounty: '',
-                        addressEirecode: ''
+                        addressEircode: ''
                     },
                     guidePrice: '',
                     currentBid: {
@@ -334,11 +334,11 @@ export default function ListingForum() {
                                 <Grid item xs={12} md={4}>
                                     <TextField 
                                         required 
-                                        name="addressEirecode" 
+                                        name="addressEircode" 
                                         label="EirCode" 
                                         variant="outlined" 
                                         fullWidth 
-                                        value={propertyData.address.addressEirecode} 
+                                        value={propertyData.address.addressEircode} 
                                         onChange={handleForum}
                                         sx={TextFieldSx}
                                     />
