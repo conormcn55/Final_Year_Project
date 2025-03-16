@@ -1,121 +1,80 @@
-/**
- * Property Model - Represents a real estate property listing
- */
-
-// Import mongoose for MongoDB object modeling
 const mongoose = require('mongoose');
-// Get the Schema constructor from mongoose
 const Schema = mongoose.Schema;
 
-/**
- * Define the Property schema structure
- * This schema represents a real estate property with detailed information
- * for auction/sale listings
- */
 const PropertySchema = new Schema({
-    // Detailed address information for the property
     address: {
-        addressLine1: { type: String, required: false },
-        addressLine2: { type: String, required: false }, // Optional
-        addressLine3: { type: String, required: false }, // Optional
-        addressTown: { type: String, required: false },
-        addressCounty: { type: String, required: false },
-        addressEircode: { type: String, required: false }, 
+        addressLine1: String,
+        addressLine2: String, // Optional
+        addressLine3: String, // Optional
+        addressTown: String,
+        addressCounty: String,
+        addressEircode: String, 
     },
     
-    // Starting price for the property (guide price)
     guidePrice: {
         type: Number,
-        default: false,
-        required: false
+        default: false
     },
     
-    // Information about the current highest bid
     currentBid: {
         bidId: { type: String, default: false }, // Reference to the Bid model
-        amount: { type: Number, required: false }, // Current highest bid amount
+        amount: Number // Current highest bid amount
     },
     
-    // Information about who listed the property
     listedBy: {
-        listerID: { type: String, required: false }, // Reference to the User model
-        listerName: { type: String, required: false }, // Name of the listing agent/user
+        listerID: String, // Reference to the User model
+        listerName: String // Name of the listing agent/user
     },
     
-    // Array of property images stored in Cloudinary
     images: [
         {
-            public_id: {
-                type: String,
-                required: false // Cloudinary public ID
-            },
-            url: {
-                type: String,
-                required: false // Cloudinary URL to the image
-            }
+            public_id: String, // Cloudinary public ID
+            url: String // Cloudinary URL to the image
         }
     ],
     
-    // Date when the property will be auctioned/sold
     saleDate: {
         type: String, 
-        default: false, 
-        required: false
+        default: false
     },
     
-    // Flag indicating if the property has been sold
     sold: {
         type: Boolean,
-        default: false // Properties are not sold by default
+        default: false
     },
     
-    // Number of bedrooms in the property
     bedrooms: {
         type: Number,
-        default: false,
-        required: false
+        default: false
     },
     
-    // Number of bathrooms in the property
     bathrooms: {
         type: Number,
-        default: false, 
-        required: false
+        default: false
     },
     
-    // Size of the property in square meters
     sqdMeters: {
         type: Number,
-        default: false, 
-        required: false
+        default: false
     },
     
-    // Type of property (e.g., house, apartment, etc.)
     propertyType: {
         type: String,
-        default: false, 
-        required: false
+        default: false
     },
     
-    // Type of listing (e.g., sale, rent)
     listingType: {
         type: String,
-        default: "sale", // Default listing type is "sale"
-        required: false
+        default: "sale"
     },
     
-    // Detailed description of the property
     description: {
         type: String,
-        default: "sale", 
-        required: false
+        default: "sale"
     }
 }, 
-// Enable timestamps to track when the property was created and last updated
-{ timestamps: true }); 
+{ timestamps: true });
 
-// Create the Property model from the schema
 const Property = mongoose.model("Property", PropertySchema);
 
-// Export the model 
 module.exports = Property;
