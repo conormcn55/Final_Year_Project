@@ -123,7 +123,7 @@ app.use(session({
   cookie: {
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
     httpOnly: true,
-    secure: false, // Use secure cookies in production
+    secure: !isLocalhost, // Use secure cookies in production
     sameSite: isLocalhost ? 'lax' : 'none' // Allow cross-site cookies in production
   }
 }));
