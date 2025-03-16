@@ -44,7 +44,7 @@ exports.createProperty = async (req, res) => {
             imagesBuffer.push({
                 public_id: result.public_id,
                 url: result.secure_url
-            })
+            });
         }
 
         // Create new property object with all fields from request

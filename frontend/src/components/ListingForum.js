@@ -123,14 +123,11 @@ export default function ListingForum() {
     /**
      * Submits the form data to the API
      * Combines images and property data, adds lister information
-     * 
-     * @param {Event} e - The form submission event
      */
     const submitForm = async (e) => {
         e.preventDefault();
         setLoading(true);
         try {
-            // Create the request payload by combining all data
             const requestData = {
                 images,
                 ...propertyData,
@@ -139,11 +136,10 @@ export default function ListingForum() {
                     listerName: userName
                 }
             };
-
-            console.log('Request Data:', JSON.stringify(requestData, null, 2));
-            // Send data to the backend API
+    
+            console.log('Request Data:', JSON.stringify(requestData, null, 2)); // Log the payload
             const { data } = await axios.post(`${process.env.REACT_APP_API_URL}/property/new`, requestData);
-
+    
             if (data.success === true) {
                 setLoading(false);
                 // Reset form state after successful submission
