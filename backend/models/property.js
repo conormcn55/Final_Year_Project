@@ -15,31 +15,31 @@ const Schema = mongoose.Schema;
 const PropertySchema = new Schema({
     // Detailed address information for the property
     address: {
-        addressLine1: { type: String, required: true },
+        addressLine1: { type: String, required: false },
         addressLine2: { type: String, required: false }, // Optional
         addressLine3: { type: String, required: false }, // Optional
-        addressTown: { type: String, required: true },
-        addressCounty: { type: String, required: true },
-        addressEircode: { type: String, required: true }, 
+        addressTown: { type: String, required: false },
+        addressCounty: { type: String, required: false },
+        addressEircode: { type: String, required: false }, 
     },
     
     // Starting price for the property (guide price)
     guidePrice: {
         type: Number,
         default: false,
-        required: true
+        required: false
     },
     
     // Information about the current highest bid
     currentBid: {
         bidId: { type: String, default: false }, // Reference to the Bid model
-        amount: { type: Number, required: true }, // Current highest bid amount
+        amount: { type: Number, required: false }, // Current highest bid amount
     },
     
     // Information about who listed the property
     listedBy: {
-        listerID: { type: String, required: true }, // Reference to the User model
-        listerName: { type: String, required: true }, // Name of the listing agent/user
+        listerID: { type: String, required: false }, // Reference to the User model
+        listerName: { type: String, required: false }, // Name of the listing agent/user
     },
     
     // Array of property images stored in Cloudinary
@@ -47,11 +47,11 @@ const PropertySchema = new Schema({
         {
             public_id: {
                 type: String,
-                required: true // Cloudinary public ID
+                required: false // Cloudinary public ID
             },
             url: {
                 type: String,
-                required: true // Cloudinary URL to the image
+                required: false // Cloudinary URL to the image
             }
         }
     ],
@@ -60,7 +60,7 @@ const PropertySchema = new Schema({
     saleDate: {
         type: String, 
         default: false, 
-        required: true
+        required: false
     },
     
     // Flag indicating if the property has been sold
@@ -73,42 +73,42 @@ const PropertySchema = new Schema({
     bedrooms: {
         type: Number,
         default: false,
-        required: true
+        required: false
     },
     
     // Number of bathrooms in the property
     bathrooms: {
         type: Number,
         default: false, 
-        required: true
+        required: false
     },
     
     // Size of the property in square meters
     sqdMeters: {
         type: Number,
         default: false, 
-        required: true
+        required: false
     },
     
     // Type of property (e.g., house, apartment, etc.)
     propertyType: {
         type: String,
         default: false, 
-        required: true
+        required: false
     },
     
     // Type of listing (e.g., sale, rent)
     listingType: {
         type: String,
         default: "sale", // Default listing type is "sale"
-        required: true
+        required: false
     },
     
     // Detailed description of the property
     description: {
         type: String,
         default: "sale", 
-        required: true
+        required: false
     }
 }, 
 // Enable timestamps to track when the property was created and last updated
